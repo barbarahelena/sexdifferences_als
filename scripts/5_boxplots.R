@@ -39,40 +39,49 @@ theme_Publication <- function(base_size=12, base_family="sans") {
 } 
 
 ### Data ###
-df3_scale <- readRDS("data/proteins_expression_scaled_data.RDS") # all protein expression data (scaled to mean 0 and sd 1)
-df5 <- readRDS("data/proteins_ttest_diff.RDS")
-qval_sig <- "Gcg"
-pval_sig <- unique(df5_sel$protein)
+df <- readRDS("data/metabolomics.RDS")
+allmets <- names(df)
+df$ID <- rownames(df)
+meta <- readRDS("data/metadata.RDS")
+df <- right_join(df, meta, by = "ID")
+tests <- rio::import("r_results/ttests/metabolites_welcht_diff.csv")
+qval_sig <- unique(tests$metabolite[which(tests$q.value < 0.05)])
+pval_sig <- unique(tests$metabolite[which(tests$p.value < 0.05)])
+df <- df %>% mutate(GroupPerSex = fct_relevel(GroupPerSex, "Male Control", after = 1L),
+                    GroupPerSex = fct_relevel(GroupPerSex, "Female TDP43", after = 2L))
 
 ### Boxplot differences ###
 res_box <- list()
 for(a in 1:length(pval_sig)){
-    protein <- pval_sig[a]
-    proteinname <- paste0(pval_sig[a])
-    print(proteinname)
-    df_protein <- df3_scale %>% select(Treatment, all_of(protein))
-    df_protein$protein_y <- df_protein[,2]
-    comp <- list(c("Control + CI", "Pneumonia + CI"))
-    (pl <- ggplot(data = df_protein, aes(x = Treatment, y = protein_y)) + 
+    metab <- pval_sig[a]
+    metname <- paste0(pval_sig[a])
+    print(metname)
+    dfmet <- df %>% select(GroupPerSex, all_of(metname))
+    dfmet$met_y <- scale(dfmet[,2])
+    comp <- list(c("Female Control", "Male Control"), c("Female Control", "Female TDP43"),
+                    c("Female TDP43", "Male TDP43"), c("Male Control", "Male TDP43"))
+    (pl <- ggplot(data = dfmet, aes(x = GroupPerSex, y = met_y)) + 
             ggpubr::stat_compare_means(method = "t.test", label = "p.signif", comparisons = comp,
-                                       hide.ns = TRUE, bracket.size = 0.5, size = 5) +
-            geom_boxplot(aes(color = Treatment), outlier.shape = NA, 
+                                       hide.ns = TRUE, size = 5, step.increase = 0.2,
+                                       var.equal = FALSE) +
+            geom_boxplot(aes(fill = GroupPerSex), outlier.shape = NA, 
                          width = 0.5, alpha = 0.9) +
             geom_jitter(color = "grey5", height = 0, width = 0.1, alpha = 0.75) +
-            scale_color_manual(guide = "none", values = c("black","red")) +
-            ylim(NA, max(df_protein$protein_y)*1.3) +
-            labs(title=proteinname, y="Protein expression (z-score)") +
-            theme_Publication())
-    ggsave(str_c("results/pdf/proteins/", proteinname, ".pdf"), width = 3, height = 4, device = "pdf")
-    ggsave(str_c("results/svg/proteins/", proteinname, ".svg"), width = 3, height = 4, device = "svg")
+            scale_fill_manual(guide = "none", values = pal_nejm()(4)) +
+            ylim(NA, max(dfmet$met_y)*1.3) +
+            labs(title=metname, y="Metabolite (z-score)", x = "") +
+            theme_Publication() +
+            theme(axis.text.x = element_text(angle = 45, hjust = 1)))
+    ggsave(str_c("r_results/boxplots/", metname, ".pdf"), width = 4, height = 5, device = "pdf")
+    ggsave(str_c("r_results/boxplots/", metname, ".svg"), width = 4, height = 5, device = "svg")
     res_box[[a]] <- pl
 }
 
-pdf("results/pdf/boxplots_proteins.pdf", width = 12, height = 10)
+pdf("r_results/boxplots/boxplots_met.pdf", width = 12, height = 14)
 gridExtra::grid.arrange(grobs=res_box, ncol=4)
 dev.off()
 
-svg("results/svg/boxplots_proteins.svg", width = 12, height = 10)
+svg("r_results/boxplots/boxplots_met.svg", width = 12, height = 14)
 gridExtra::grid.arrange(grobs=res_box, ncol=5)
 dev.off()
 
