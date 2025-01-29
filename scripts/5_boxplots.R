@@ -44,11 +44,12 @@ allmets <- names(df)
 df$ID <- rownames(df)
 meta <- readRDS("data/metadata.RDS")
 df <- right_join(df, meta, by = "ID")
-tests <- rio::import("r_results/ttests/metabolites_welcht_diff.csv")
-qval_sig <- unique(tests$metabolite[which(tests$q.value < 0.05)])
-pval_sig <- unique(tests$metabolite[which(tests$p.value < 0.05)])
 df <- df %>% mutate(GroupPerSex = fct_relevel(GroupPerSex, "Male Control", after = 1L),
                     GroupPerSex = fct_relevel(GroupPerSex, "Female TDP43", after = 2L))
+tests <- rio::import("r_results/ttests/metabolites_welcht_diff.csv")
+tests2 <- rio::import("r_results/ttests/metabolites_welcht_ctrl_diff.csv")
+qval_sig <- unique(c(tests$metabolite[which(tests$q.value < 0.05)], tests2$metabolite[which(tests2$q.value < 0.05)]))
+pval_sig <- unique(c(tests$metabolite[which(tests$p.value < 0.05)], tests2$metabolite[which(tests2$p.value < 0.05)]))
 
 ### Boxplot differences ###
 res_box <- list()
@@ -58,30 +59,28 @@ for(a in 1:length(pval_sig)){
     print(metname)
     dfmet <- df %>% select(GroupPerSex, all_of(metname))
     dfmet$met_y <- scale(dfmet[,2])
-    comp <- list(c("Female Control", "Male Control"), c("Female Control", "Female TDP43"),
-                    c("Female TDP43", "Male TDP43"), c("Male Control", "Male TDP43"))
+    comp <- list(c("Female Control", "Male Control"), c("Female TDP43", "Male TDP43"))
     (pl <- ggplot(data = dfmet, aes(x = GroupPerSex, y = met_y)) + 
             ggpubr::stat_compare_means(method = "t.test", label = "p.signif", comparisons = comp,
-                                       hide.ns = TRUE, size = 5, step.increase = 0.2,
+                                       hide.ns = TRUE, size = 5, #step.increase = 0.1,
                                        var.equal = FALSE) +
             geom_boxplot(aes(fill = GroupPerSex), outlier.shape = NA, 
                          width = 0.5, alpha = 0.9) +
             geom_jitter(color = "grey5", height = 0, width = 0.1, alpha = 0.75) +
             scale_fill_manual(guide = "none", values = pal_nejm()(4)) +
-            ylim(NA, max(dfmet$met_y)*1.3) +
+            ylim(NA, max(dfmet$met_y)*2) +
             labs(title=metname, y="Metabolite (z-score)", x = "") +
             theme_Publication() +
             theme(axis.text.x = element_text(angle = 45, hjust = 1)))
-    ggsave(str_c("r_results/boxplots/", metname, ".pdf"), width = 4, height = 5, device = "pdf")
-    ggsave(str_c("r_results/boxplots/", metname, ".svg"), width = 4, height = 5, device = "svg")
+    ggsave(str_c("r_results/boxplots/", metname, ".pdf"), width = 4, height = 5.5, device = "pdf")
+    ggsave(str_c("r_results/boxplots/", metname, ".svg"), width = 4, height = 5.5, device = "svg")
     res_box[[a]] <- pl
 }
 
-pdf("r_results/boxplots/boxplots_met.pdf", width = 12, height = 14)
-gridExtra::grid.arrange(grobs=res_box, ncol=4)
-dev.off()
-
-svg("r_results/boxplots/boxplots_met.svg", width = 12, height = 14)
+pdf("r_results/boxplots/boxplots_met.pdf", width = 15, height = 22)
 gridExtra::grid.arrange(grobs=res_box, ncol=5)
 dev.off()
 
+svg("r_results/boxplots/boxplots_met.svg", width = 15, height = 22)
+gridExtra::grid.arrange(grobs=res_box, ncol=5)
+dev.off()
