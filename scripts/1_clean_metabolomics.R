@@ -15,9 +15,11 @@ df <- import("data/metadata.xlsx") %>% select(ID = Sample, Group) %>%
                             str_detect(Group, "Male") ~ "Male",
                             .default = NA),
             GroupPerSex = str_c(Sex, " ", Intervention),
+            GroupPerSex = fct_relevel(GroupPerSex, "Male Control", after = 1L),
+            GroupPerSex = fct_relevel(GroupPerSex, "Female TDP43", after = 2L),
             across(c(Sex, Intervention, GroupPerSex), as.factor),
             Sex = fct_rev(Sex))
-summary(df$Sex); summary(df$Intervention)
+summary(df$Sex); summary(df$Intervention); summary(df$GroupPerSex)
 saveRDS(df, "data/metadata.RDS")
 
 # Open metabolomics data
