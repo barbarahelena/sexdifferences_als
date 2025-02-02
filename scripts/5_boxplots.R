@@ -44,8 +44,6 @@ allmets <- names(df)
 df$ID <- rownames(df)
 meta <- readRDS("data/metadata.RDS")
 df <- right_join(df, meta, by = "ID")
-df <- df %>% mutate(GroupPerSex = fct_relevel(GroupPerSex, "Male Control", after = 1L),
-                    GroupPerSex = fct_relevel(GroupPerSex, "Female TDP43", after = 2L))
 tests <- rio::import("r_results/ttests/metabolites_welcht_diff.csv")
 tests2 <- rio::import("r_results/ttests/metabolites_welcht_ctrl_diff.csv")
 qval_sig <- unique(c(tests$metabolite[which(tests$q.value < 0.05)], tests2$metabolite[which(tests2$q.value < 0.05)]))
