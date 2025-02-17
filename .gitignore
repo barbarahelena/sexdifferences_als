@@ -11,6 +11,8 @@ samplesheet*
 sample*
 *.sh
 .vscode/
+als_*
+pipeline_output/*
 
 # History files
 .Rhistory
