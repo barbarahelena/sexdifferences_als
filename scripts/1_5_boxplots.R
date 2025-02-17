@@ -44,8 +44,8 @@ allmets <- names(df)
 df$ID <- rownames(df)
 meta <- readRDS("data/metadata.RDS")
 df <- right_join(df, meta, by = "ID")
-tests <- rio::import("r_results/ttests/metabolites_welcht_diff.csv")
-tests2 <- rio::import("r_results/ttests/metabolites_welcht_ctrl_diff.csv")
+tests <- rio::import("results/ttests/metabolites_welcht_diff.csv")
+tests2 <- rio::import("results/ttests/metabolites_welcht_ctrl_diff.csv")
 qval_sig <- unique(c(tests$metabolite[which(tests$q.value < 0.05)], tests2$metabolite[which(tests2$q.value < 0.05)]))
 pval_sig <- unique(c(tests$metabolite[which(tests$p.value < 0.05)], tests2$metabolite[which(tests2$p.value < 0.05)]))
 
@@ -70,15 +70,15 @@ for(a in 1:length(pval_sig)){
             labs(title=metname, y="Metabolite (z-score)", x = "") +
             theme_Publication() +
             theme(axis.text.x = element_text(angle = 45, hjust = 1)))
-    ggsave(str_c("r_results/boxplots/", metname, ".pdf"), width = 4, height = 5.5, device = "pdf")
-    ggsave(str_c("r_results/boxplots/", metname, ".svg"), width = 4, height = 5.5, device = "svg")
+    ggsave(str_c("results/boxplots/", metname, ".pdf"), width = 4, height = 5.5, device = "pdf")
+    ggsave(str_c("results/boxplots/", metname, ".svg"), width = 4, height = 5.5, device = "svg")
     res_box[[a]] <- pl
 }
 
-pdf("r_results/boxplots/boxplots_met.pdf", width = 15, height = 22)
+pdf("results/boxplots/boxplots_met.pdf", width = 15, height = 22)
 gridExtra::grid.arrange(grobs=res_box, ncol=5)
 dev.off()
 
-svg("r_results/boxplots/boxplots_met.svg", width = 15, height = 22)
+svg("results/boxplots/boxplots_met.svg", width = 15, height = 22)
 gridExtra::grid.arrange(grobs=res_box, ncol=5)
 dev.off()

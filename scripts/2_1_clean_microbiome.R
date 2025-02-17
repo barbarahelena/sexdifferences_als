@@ -6,6 +6,17 @@ library(tidyverse)
 library(rio)
 library(forcats)
 
+# Metadata table
+meta <- rio::import("data/sample_info_valeriia.csv") %>% 
+                    filter(str_detect(ID, "L")) %>% 
+                    mutate(GenotypePerSex = str_c(Sex, " ", Genotype),
+                           GenotypePerSex = fct_relevel(GenotypePerSex, "Female WT", after = 0L),
+                           GenotypePerSex = fct_relevel(GenotypePerSex, "Male WT", after = 1L),
+                            Age_weeks = fct_relevel(Age_weeks, "8 weeks", after = 0L),
+                            Age_weeks = fct_relevel(Age_weeks, "6 weeks", after = 0L))
+saveRDS(meta, "data/meta_microbiome.RDS")
+write.csv(meta, "data/meta_microbiome.csv")
+
 # Tidy bracken table
 tab <- rio::import("data/combined_brackenoutput.txt")
 dim(tab)
@@ -18,32 +29,16 @@ rownames(tab) <- tab$name
 tab$name <- NULL
 df <- as.data.frame(t(as.matrix(tab)))
 head(df)[1:5,1:5]
+df <- df %>% filter(rownames(.) %in% meta$ID)
+dim(df)
+
+threshold <- 0.0005
+min_samples <- 0.1 * nrow(df)
+species_filter <- apply(df, 2, function(x) sum(x >= threshold) >= min_samples)
+df_filtered <- df[, species_filter]
+dim(df_filtered)
+
 saveRDS(df, "data/microbiome.RDS")
-
-# Tidy pathway table
-pathw <- rio::import("data/pathway_abundance_cpm_unstratified.txt") %>% 
-                filter(`# Pathway` != "UNMAPPED" & `# Pathway` != "UNINTEGRATED")
-head(pathw)
-names(pathw)
-paths <- pathw$`# Pathway`
-keys <- str_extract(paths, "[A-Z0-9-]+(?=:)")
-expl <- trimws(str_extract(paths, "(?<=:).*"))
-lib <- data.frame(paths, keys, expl)
-pathw <- pathw %>% rename_with(~ str_remove(., "_Abundance"), 2:ncol(.)) %>% 
-                    mutate(`# Pathway` = str_extract(`# Pathway`, "[A-Z0-9-]+(?=:)"))
-rownames(pathw) <- pathw$`# Pathway`
-pathw$`# Pathway` <- NULL
-pathdf <- as.data.frame(t(as.matrix(pathw)))
-head(pathdf)[1:5,1:5]
-dim(pathdf)
-variances <- sapply(pathdf, sd)
-summary(variances < 5)
-means <- sapply(pathdf, mean)
-summary(means < 40)
-medians <- sapply(pathdf, median)
-summary(medians < 40)
-saveRDS(pathdf, "data/pathways.RDS")
-
-# Metadata table
-meta <- rio::import("data/sample_info_valeriia.csv") %>% filter(str_detect(ID, "L"))
-saveRDS(meta, "data/meta_microbiome.RDS")
+write.csv(df, "data/microbiome.csv")
+saveRDS(df_filtered, "data/microbiome_filtered.RDS")
+write.csv(df_filtered, "data/microbiome_filtered.csv")

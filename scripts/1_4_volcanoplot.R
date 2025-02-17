@@ -53,7 +53,7 @@ theme_Publication <- function(base_size=12, base_family="sans") {
 } 
 
 ## Female-male ctrl
-res1 <- rio::import("r_results/ttests/metabolites_welcht_ctrl_diff.csv")
+res1 <- rio::import("results/metabolomics/ttests/metabolites_welcht_ctrl_diff.csv")
 res1 <- calculate_log2_fold_change(res1)
 res1
 df_sum <- res1 %>% filter(Sex == "Female")
@@ -97,11 +97,11 @@ ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = del
     labs(x = "Log2 fold change (Female - Male)",
          y = "-log10(p-value)")
 
-ggsave("r_results/volcanoplots/volcanoplot_ctrl.pdf", width = 5, height = 5, device = "pdf")
-ggsave("r_results/volcanoplots/volcanoplot_ctrl.svg", width = 5, height = 5, device = "svg")
+ggsave("results/metabolomics/volcanoplots/volcanoplot_ctrl.pdf", width = 5, height = 5, device = "pdf")
+ggsave("results/metabolomics/volcanoplots/volcanoplot_ctrl.svg", width = 5, height = 5, device = "svg")
 
 ## Female-male TDP43
-res2 <- rio::import("r_results/ttests/metabolites_welcht_diff.csv")
+res2 <- rio::import("results/metabolomics/ttests/metabolites_welcht_diff.csv")
 res2 <- calculate_log2_fold_change(res2)
 res2
 df_sum <- res2 %>% filter(Sex == "Female")
@@ -141,15 +141,15 @@ ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = del
                     nudge_x = 0.05, nudge_y = 0.5, segment.color = "grey70",
                     force = 1.5, max.overlaps = 10) +
     scale_color_manual(values = c(ggsci::pal_lancet()(2)), guide = "none") +
-    scale_x_continuous(limits = c(-1, 1), breaks = c(-1,-0.75,-0.5,-0.25,0,0.25,0.5,0.75,1.0)) +
+    #scale_x_continuous(limits = c(-1, 1), breaks = c(-1,-0.75,-0.5,-0.25,0,0.25,0.5,0.75,1.0)) +
     labs(x = "Log2 fold change (Female - Male)",
          y = "-log10(p-value)")
 
-ggsave("r_results/volcanoplots/volcanoplot_tdp43.pdf", width = 5, height = 5, device = "pdf")
-ggsave("r_results/volcanoplots/volcanoplot_tdp43.svg", width = 5, height = 5, device = "svg")
+ggsave("results/metabolomics/volcanoplots/volcanoplot_tdp43.pdf", width = 5, height = 5, device = "pdf")
+ggsave("results/metabolomics/volcanoplots/volcanoplot_tdp43.svg", width = 5, height = 5, device = "svg")
 
 ## TDP43 - Control (male and female together)
-res3 <- rio::import("r_results/ttests/metabolites_welcht_mice_diff.csv")
+res3 <- rio::import("results/metabolomics/ttests/metabolites_welcht_mice_diff.csv")
 res3 <- calculate_log2_fold_change2(res3)
 res3
 df_sum <- res3 %>% filter(Intervention == "TDP43")
@@ -193,11 +193,11 @@ ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = del
     labs(x = "Log2 fold change (TDP43 - Control)",
          y = "-log10(p-value)")
 
-ggsave("r_results/volcanoplots/volcanoplot_all.pdf", width = 5, height = 5, device = "pdf")
-ggsave("r_results/volcanoplots/volcanoplot_all.svg", width = 5, height = 5, device = "svg")
+ggsave("results/metabolomics/volcanoplots/volcanoplot_all.pdf", width = 5, height = 5, device = "pdf")
+ggsave("results/metabolomics/volcanoplots/volcanoplot_all.svg", width = 5, height = 5, device = "svg")
 
 ## TDP43 - Control (female)
-res4 <- rio::import("r_results/ttests/metabolites_welcht_mice_fem_diff.csv")
+res4 <- rio::import("results/metabolomics/ttests/metabolites_welcht_mice_fem_diff.csv")
 res4 <- calculate_log2_fold_change2(res4)
 res4
 df_sum <- res4 %>% filter(Intervention == "TDP43")
@@ -241,11 +241,11 @@ ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = del
     labs(x = "Log2 fold change (TDP43 - Control)",
          y = "-log10(p-value)")
 
-ggsave("r_results/volcanoplots/volcanoplot_tdp43_fem.pdf", width = 5, height = 5, device = "pdf")
-ggsave("r_results/volcanoplots/volcanoplot_tdp43_fem.svg", width = 5, height = 5, device = "svg")
+ggsave("results/metabolomics/volcanoplots/volcanoplot_tdp43_fem.pdf", width = 5, height = 5, device = "pdf")
+ggsave("results/metabolomics/volcanoplots/volcanoplot_tdp43_fem.svg", width = 5, height = 5, device = "svg")
 
 ## TDP43 - Control (male)
-res5 <- rio::import("r_results/ttests/metabolites_welcht_mice_male_diff.csv")
+res5 <- rio::import("results/metabolomics/ttests/metabolites_welcht_mice_male_diff.csv")
 res5 <- calculate_log2_fold_change2(res5)
 res5
 df_sum <- res5 %>% filter(Intervention == "TDP43")
@@ -289,5 +289,5 @@ ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = del
     labs(x = "Log2 fold change (TDP43 - Control)",
          y = "-log10(p-value)")
 
-ggsave("r_results/volcanoplots/volcanoplot_tdp43_male.pdf", width = 5, height = 5, device = "pdf")
-ggsave("r_results/volcanoplots/volcanoplot_tdp43_male.svg", width = 5, height = 5, device = "svg")
+ggsave("results/metabolomics/volcanoplots/volcanoplot_tdp43_male.pdf", width = 5, height = 5, device = "pdf")
+ggsave("results/metabolomics/volcanoplots/volcanoplot_tdp43_male.svg", width = 5, height = 5, device = "svg")

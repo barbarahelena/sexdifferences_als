@@ -89,11 +89,11 @@ ggplot(scores_df, aes(x = comp.1, y = comp.2, color = Group)) +
         theme(legend.title = element_blank()))
 
 # Save the plot
-ggsave("r_results/plsda_plot.pdf", width = 8, height = 6, device = "pdf")
+ggsave("results/plsda_plot.pdf", width = 8, height = 6, device = "pdf")
 
 # Optional: Evaluate the model
 perf_plsda <- perf(plsda_result, validation = "Mfold", folds = 5, progressBar = TRUE, nrepeat = 10)
 print(perf_plsda)
 
 # Save the performance results
-saveRDS(perf_plsda, file = "r_results/plsda_performance.rds")
+saveRDS(perf_plsda, file = "results/plsda_performance.rds")

@@ -50,7 +50,7 @@ head(met)[1:5,1:5]
 dim(met)
 met <- as.matrix(met)
 set.seed(112)
-pca <- prcomp(met, center = FALSE, scale = FALSE)
+pca <- prcomp(met, center = TRUE, scale = TRUE)
 df <- as.data.frame(pca$x[, 1:5])
 summary(pca)
 pc1_ev <- round(summary(pca)$importance[2,1] * 100, 2)
@@ -66,39 +66,52 @@ df <- df %>% arrange(Group)
 (pca <- ggplot(df, aes(x=PC1, y=PC2, color=Group)) +
         stat_ellipse(geom = "polygon", aes(fill = Group, color = Group),
                      alpha = 0.3) +
-        geom_point() +
+        geom_point(size = 2) +
         ggtitle('PCA plasma metabolites') +
-        scale_color_bmj() +
-        scale_fill_bmj() +
+        scale_color_manual(values = pal_nejm()(7)[c(5,7)]) +
+        scale_fill_manual(values = pal_nejm()(7)[c(5,7)]) +
         theme_minimal() +
         labs(x=str_c('PC1 ', pc1_ev, '%'), y=str_c('PC2 ', pc2_ev, '%')) +
         theme_Publication() +
         theme(legend.title = element_blank()))
-ggsave("r_results/pca_groups.pdf", width = 5, height = 4.5)
+ggsave("results/pca_groups.pdf", width = 5, height = 4.5)
 
 (pca <- ggplot(df, aes(x=PC1, y=PC2, color=Sex)) +
         stat_ellipse(geom = "polygon", aes(fill = Sex, color = Sex),
                      alpha = 0.3) +
         geom_point() +
         ggtitle('PCA plasma metabolites') +
-        scale_color_manual(values = pal_bmj()(5)[c(3,5)]) +
+        scale_color_manual(values = pal_bmj()(4)[c(3,5)]) +
         scale_fill_manual(values = pal_bmj()(5)[c(3,5)]) +
         theme_minimal() +
         labs(x=str_c('PC1 ', pc1_ev, '%'), y=str_c('PC2 ', pc2_ev, '%')) +
         theme_Publication() +
         theme(legend.title = element_blank()))
-ggsave("r_results/pca_sex.pdf", width = 5, height = 4.5)
+ggsave("results/pca_sex.pdf", width = 5, height = 4.5)
 
 (pca <- ggplot(df, aes(x=PC1, y=PC2, color=GroupPerSex)) +
         stat_ellipse(geom = "polygon", aes(fill = GroupPerSex, color = GroupPerSex),
                      alpha = 0.3) +
         geom_point() +
         ggtitle('PCA plasma metabolites') +
-        scale_color_manual(values = pal_bmj()(5)[c(1,2,3,5)]) +
-        scale_fill_manual(values = pal_bmj()(5)[c(1,2,3,5)]) +
+        scale_color_manual(values = pal_nejm()(4)) +
+        scale_fill_manual(values = pal_nejm()(4)) +
         theme_minimal() +
         labs(x=str_c('PC1 ', pc1_ev, '%'), y=str_c('PC2 ', pc2_ev, '%')) +
         theme_Publication() +
         theme(legend.title = element_blank()))
-ggsave("r_results/pca_grouppersex.pdf", width = 5, height = 4.5)
+ggsave("results/pca_grouppersex.pdf", width = 5, height = 4.5)
 
+(pca <- ggplot(df, aes(x=PC1, y=PC2, color=GroupPerSex)) +
+        stat_ellipse(geom = "polygon", aes(fill = GroupPerSex, color = GroupPerSex),
+                     alpha = 0.3) +
+        geom_point() +
+        ggtitle('PCA plasma metabolites') +
+        scale_color_manual(values = pal_nejm()(4)) +
+        scale_fill_manual(values = pal_nejm()(4)) +
+        theme_minimal() +
+        labs(x=str_c('PC1 ', pc1_ev, '%'), y=str_c('PC2 ', pc2_ev, '%')) +
+        theme_Publication() +
+        facet_wrap(~Group) +
+        theme(legend.title = element_blank()))
+ggsave("results/pca_grouppersex_genotype.pdf", width = 8, height = 4.5)

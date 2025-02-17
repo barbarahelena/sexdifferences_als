@@ -9,13 +9,15 @@ library(forcats)
 ## Open metadata
 df <- import("data/metadata.xlsx") %>% select(ID = Sample, Group) %>%
     mutate(Intervention = case_when(str_detect(Group, "Disease") ~ "TDP43",
-                           str_detect(Group, "Control") ~ "Control",
+                           str_detect(Group, "Control") ~ "WT",
                            .default = NA),
+            Intervention = fct_relevel(Intervention, "WT", after = 0L),
             Sex = case_when(str_detect(Group, "Female") ~ "Female",
                             str_detect(Group, "Male") ~ "Male",
                             .default = NA),
             GroupPerSex = str_c(Sex, " ", Intervention),
-            GroupPerSex = fct_relevel(GroupPerSex, "Male Control", after = 1L),
+            GroupPerSex = fct_relevel(GroupPerSex, "Female WT", after = 0L),
+            GroupPerSex = fct_relevel(GroupPerSex, "Male WT", after = 1L),
             GroupPerSex = fct_relevel(GroupPerSex, "Female TDP43", after = 2L),
             across(c(Sex, Intervention, GroupPerSex), as.factor),
             Sex = fct_rev(Sex))

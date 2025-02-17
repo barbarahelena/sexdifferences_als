@@ -11,11 +11,11 @@ library(ggsci)
 ## Data
 df <- readRDS("data/metadata.RDS")
 met <- readRDS("data/metabolomics.RDS")
-res1 <- rio::import("r_results/metabolites_welcht_ctrl_sig.csv")
-res2 <- rio::import("r_results/metabolites_welcht_sig.csv")
+res1 <- rio::import("results/metabolomics/ttests/metabolites_welcht_ctrl_sig.csv")
+res2 <- rio::import("results/metabolomics/ttests/metabolites_welcht_sig.csv")
 totmetlist <- c(res1$metabolite, res2$metabolite)
-resfull1 <- rio::import("r_results/metabolites_welcht_ctrl_diff.csv")
-resfull2 <- rio::import("r_results/metabolites_welcht_diff.csv")
+resfull1 <- rio::import("results/metabolomics/ttests/metabolites_welcht_ctrl_diff.csv")
+resfull2 <- rio::import("results/metabolomics/ttests/metabolites_welcht_diff.csv")
 totres <- full_join(resfull1 %>% filter(Sex == "Female" & metabolite %in% totmetlist) %>% select(1:4,7), 
                     resfull2 %>% filter(Sex == "Female" & metabolite %in% totmetlist) %>% select(1:4,7), 
                     by = "metabolite", suffix = c("_ctrl", "_tdp43"))
@@ -36,12 +36,12 @@ matmet <- matmet[,metanno$ID]
                 col = col_fun, 
                 rect_gp = gpar(col = "white", lwd = 2),
                 column_title_gp = grid::gpar(fontsize = 8, fontface = "bold"),
-                column_split = c(rep("Ctrl (M)", 5), rep("TDP43 (M)", 5),
-                                    rep("Ctrl (F)", 5), rep("TDP43 (F)", 5)),  
+                column_split = c(rep("WT (M)", 5), rep("TDP43 (M)", 5),
+                                    rep("WT (F)", 5), rep("TDP43 (F)", 5)),  
                 column_order = metanno$ID,
                 cluster_columns = FALSE,
                 clustering_method_rows = "average",
-                top_annotation = HeatmapAnnotation(Group = anno_block(gp = gpar(fill = c(pal_nejm()(7)[c(3,4,6,7)]))), 
+                top_annotation = HeatmapAnnotation(Group = anno_block(gp = gpar(fill = c(pal_nejm()(4)))), 
                                                     height = unit(0.2, "cm")),
                 left_annotation = rowAnnotation(pvalue_tdp43 = anno_simple(-log10(pvalanno$p.value_tdp43), 
                                                                      which = 'row',
@@ -63,7 +63,7 @@ matmet <- matmet[,metanno$ID]
                 row_names_side = "left", 
                 column_gap = unit(2, "mm"),
                 row_dend_side = "right",
-                show_column_names = FALSE,
+                #show_column_names = FALSE,
                 row_names_gp = grid::gpar(fontsize = 7))
                 )
 
@@ -72,10 +72,10 @@ lgd_pvalue = Legend(title = "p-value", col_fun = pvalue_col_fun, at = c(0, 1, 2,
 lgd_sig = Legend(pch = c("*","**","***","****"), type = "points", labels = c("0.05", "0.01", "0.001", "<0.001"))
 pl1_anno <- draw(pl1, annotation_legend_list = list(lgd_pvalue, lgd_sig))
 
-pdf("r_results/heatmaps/heatmap_fourgroups.pdf", width = 8, height = 10)
+pdf("results/heatmaps/heatmap_fourgroups.pdf", width = 8, height = 10)
 pl1_anno
 dev.off()
-svg("r_results/heatmaps/heatmap_fourgroups.svg", width = 8, height = 10)
+svg("results/heatmaps/heatmap_fourgroups.svg", width = 8, height = 10)
 pl1_anno
 dev.off()
 
@@ -88,8 +88,8 @@ matmet <- matmet[,order(metanno$ID)]
                 col = col_fun, 
                 rect_gp = gpar(col = "white", lwd = 2),
                 column_title_gp = grid::gpar(fontsize = 8, fontface = "bold"),
-                column_split = c(rep("Ctrl (M)", 5), rep("TDP43 (M)", 5),
-                                    rep("Ctrl (F)", 5), rep("TDP43 (F)", 5)),,
+                column_split = c(rep("WT (M)", 5), rep("TDP43 (M)", 5),
+                                    rep("WT (F)", 5), rep("TDP43 (F)", 5)),,
                 column_order = metanno$ID,
                 cluster_columns = FALSE,
                 clustering_method_rows = "average",
@@ -134,10 +134,10 @@ lgd_sig = Legend(pch = c("*","**","***","****"), type = "points",
                     labels = c("0.05", "0.01", "0.001", "<0.001"), grid_width = unit(5, "mm"))
 pl1_anno <- draw(pl1, annotation_legend_list = list(lgd_pvalue, lgd_group, lgd_sex))
 
-pdf("r_results/heatmaps/heatmap_diffcolors.pdf", width = 8, height = 10)
+pdf("results/heatmaps/heatmap_diffcolors.pdf", width = 8, height = 10)
 pl1_anno
 dev.off()
-svg("r_results/heatmaps/heatmap_diffcolors.svg", width = 8, height = 10)
+svg("results/heatmaps/heatmap_diffcolors.svg", width = 8, height = 10)
 pl1_anno
 dev.off()
 
@@ -145,8 +145,8 @@ dev.off()
                 col = col_fun, 
                 rect_gp = gpar(col = "white", lwd = 2),
                 column_title_gp = grid::gpar(fontsize = 8, fontface = "bold"),
-                column_split = c(rep("Ctrl (M)", 5), rep("TDP43 (M)", 5),
-                                    rep("Ctrl (F)", 5), rep("TDP43 (F)", 5)),,
+                column_split = c(rep("WT (M)", 5), rep("TDP43 (M)", 5),
+                                    rep("WT (F)", 5), rep("TDP43 (F)", 5)),,
                 column_order = metanno$ID,
                 cluster_columns = FALSE,
                 clustering_method_rows = "average",
@@ -181,10 +181,10 @@ lgd_sig = Legend(pch = c("*","**","***","****"), type = "points",
                     legend_gp = gpar(fontsize = 8))
 pl1_anno <- draw(pl1, annotation_legend_list = list(lgd_pvalue, lgd_sig))
 
-pdf("r_results/heatmaps/heatmap_noanno.pdf", width = 8, height = 10)
+pdf("results/heatmaps/heatmap_noanno.pdf", width = 8, height = 10)
 pl1_anno
 dev.off()
-svg("r_results/heatmaps/heatmap_noanno.svg", width = 8, height = 10)
+svg("results/heatmaps/heatmap_noanno.svg", width = 8, height = 10)
 pl1_anno
 dev.off()
 
@@ -199,8 +199,8 @@ totres2 <- totres %>% select(contains("mean"), contains("p.value"))
                 col = col_fun, 
                 rect_gp = gpar(col = "white", lwd = 2),
                 column_title_gp = grid::gpar(fontsize = 8, fontface = "bold"),
-                column_split = c(rep("Ctrl (M)", 5), rep("TDP43 (M)", 5),
-                                    rep("Ctrl (F)", 5), rep("TDP43 (F)", 5)),,
+                column_split = c(rep("WT (M)", 5), rep("TDP43 (M)", 5),
+                                    rep("WT (F)", 5), rep("TDP43 (F)", 5)),,
                 column_order = metanno$ID,
                 cluster_columns = FALSE,
                 clustering_method_rows = "average",

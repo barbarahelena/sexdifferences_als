@@ -128,4 +128,4 @@ set.seed(1234)
     scale_y_continuous(expand = c(0, 0)) +
     facet_grid(Sex~Genotype) +
     theme_composition())
-ggsave("r_results/microbiome/compositionalplots/speciescomp.pdf", width = 10, height = 8)
+ggsave("results/microbiome/compositionalplots/speciescomp.pdf", width = 12, height = 10)

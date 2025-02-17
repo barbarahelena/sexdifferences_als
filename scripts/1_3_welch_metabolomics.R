@@ -68,8 +68,8 @@ pval_sig <- unique(ressel$metabolite)
 pval_sig
 
 # Save tables
-write_csv(restot, "r_results/metabolites_welcht_diff.csv")
-write_csv(ressel, "r_results/metabolites_welcht_sig.csv")
+write_csv(restot, "results/metabolites_welcht_diff.csv")
+write_csv(ressel, "results/metabolites_welcht_sig.csv")
 
 ## Welch t tests between male and female control mice
 dfctrl <- dftot %>% # filter and pivot back so that metabolites are vars
@@ -128,8 +128,8 @@ pval_sig <- unique(ressel$metabolite)
 pval_sig
 
 # Save tables
-write_csv(restot, "r_results/metabolites_welcht_ctrl_diff.csv")
-write_csv(ressel, "r_results/metabolites_welcht_ctrl_sig.csv")
+write_csv(restot, "results/metabolites_welcht_ctrl_diff.csv")
+write_csv(ressel, "results/metabolites_welcht_ctrl_sig.csv")
 
 ## Welch t tests between control and TDP43 mice
 dftot2 <- dftot %>% # filter and pivot back so that metabolites are vars
@@ -187,8 +187,8 @@ pval_sig <- unique(ressel$metabolite)
 pval_sig
 
 # Save tables
-write_csv(restot, "r_results/metabolites_welcht_mice_diff.csv")
-write_csv(ressel, "r_results/metabolites_welcht_mice_sig.csv")
+write_csv(restot, "results/metabolites_welcht_mice_diff.csv")
+write_csv(ressel, "results/metabolites_welcht_mice_sig.csv")
 
 ## Welch t tests between control and TDP43 mice - females
 dftot4 <- dftot %>% # filter and pivot back so that metabolites are vars
@@ -247,8 +247,8 @@ pval_sig <- unique(ressel$metabolite)
 pval_sig
 
 # Save tables
-write_csv(restot, "r_results/metabolites_welcht_mice_fem_diff.csv")
-write_csv(ressel, "r_results/metabolites_welcht_mice_fem_sig.csv")
+write_csv(restot, "results/metabolites_welcht_mice_fem_diff.csv")
+write_csv(ressel, "results/metabolites_welcht_mice_fem_sig.csv")
 
 ## Welch t tests between control and TDP43 mice - males
 dftot3 <- dftot %>% # filter and pivot back so that metabolites are vars
@@ -307,5 +307,5 @@ pval_sig <- unique(ressel$metabolite)
 pval_sig
 
 # Save tables
-write_csv(restot, "r_results/metabolites_welcht_mice_male_diff.csv")
-write_csv(ressel, "r_results/metabolites_welcht_mice_male_sig.csv")
+write_csv(restot, "results/metabolites_welcht_mice_male_diff.csv")
+write_csv(ressel, "results/metabolites_welcht_mice_male_sig.csv")
