@@ -71,10 +71,10 @@ theme_Publication <- function(base_size=14, base_family="sans") {
 } 
 
 # Data
-mb <- readRDS("data/microbiome.RDS")
+mb <- readRDS("data/microbiome_run1.RDS")
 head(mb)[1:5,1:5]
 mean(rowSums(mb)); sd(rowSums(mb)) # adds up to 1, with 0 var
-df <- readRDS("data/meta_microbiome.RDS")
+df <- readRDS("data/meta_microbiome_run1.RDS")
 
 # Species level summarised per group
 mb2 <- mb %>% # convert to long format per species per sample
@@ -113,7 +113,7 @@ mb3 <- mb2 %>%
            Tax2 = fct_relevel(Tax2, "Other species", after = 0L),
            Age = as.factor(Age)
     ) %>% 
-    filter(! Age %in% c("20", "26"))
+    filter(! Age %in% c("18","20", "26"))
 lev <- levels(mb3$Tax2)
 
 set.seed(1234)
@@ -129,3 +129,66 @@ set.seed(1234)
     facet_grid(Sex~Genotype) +
     theme_composition())
 ggsave("results/microbiome/compositionalplots/speciescomp.pdf", width = 12, height = 10)
+
+## Repeat for run 2 ##
+# Data
+mb <- readRDS("data/microbiome_run2.RDS")
+head(mb)[1:5,1:5]
+mean(rowSums(mb)); sd(rowSums(mb)) # adds up to 1, with 0 var
+df <- readRDS("data/meta_microbiome_run2.RDS") %>% filter(Breeder != "Yes")
+head(df); dim(df)
+mb <- mb[rownames(mb) %in% df$ID,]
+table(df$Genotype, df$Age_weeks, df$Sex)
+
+# Species level summarised per group
+mb2 <- mb %>% # convert to long format per species per sample
+    rownames_to_column(var = 'Sample') %>% 
+    pivot_longer(-Sample, names_to = 'Tax', values_to = 'Abundance') %>% 
+    mutate(sampleID = Sample)
+
+top_taxa <- mb2 %>% # summarise data and select top 20 taxa
+    group_by(Tax, Sample) %>%
+    summarise(Abundance = sum(Abundance)) %>% 
+    group_by(Tax) %>% 
+    summarise(Abundance = mean(Abundance)) %>% 
+    arrange(-Abundance) %>% 
+    dplyr::select(Tax) %>% 
+    head(20)
+top_taxa
+
+mb3 <- mb2 %>% 
+    mutate(
+        Tax2 = case_when(
+            Tax %in% top_taxa$Tax ~ paste(Tax),
+            .default = "Other species"
+        ),
+        Tax2 = as.factor(Tax2)
+    ) %>% 
+    group_by(Tax2, Sample) %>% 
+    summarise(Abundance = sum(Abundance)) %>% 
+    mutate(Genotype = df$Genotype[match(Sample, df$ID)],
+           Sex = df$Sex[match(Sample, df$ID)],
+           Age = df$Age_int[match(Sample, df$ID)] ) %>% 
+    group_by(Tax2, Genotype, Sex, Age) %>% 
+    summarise(Abundance = mean(Abundance)) %>% 
+    ungroup(.) %>% 
+    mutate(
+           Tax2 = fct_reorder(Tax2, Abundance),
+           Tax2 = fct_relevel(Tax2, "Other species", after = 0L),
+           Age = as.factor(Age)
+    )
+lev <- levels(mb3$Tax2)
+
+set.seed(1234)
+(comp_species <- mb3 %>% 
+    ggplot(aes(x = Age, y = Abundance, fill = Tax2)) +
+    geom_bar(stat = "identity", color = "black") +
+    scale_fill_manual(values = rev(c(sample(cols(20)), 
+        "grey90")), labels = lev) +
+    guides(fill = guide_legend(ncol = 1)) +
+    labs(y="Composition (relative abundances)", x = "", 
+        title = "Microbiota composition", fill = "") +
+    scale_y_continuous(expand = c(0, 0)) +
+    facet_grid(Sex~Genotype) +
+    theme_composition())
+ggsave("results/microbiome/compositionalplots/speciescomp_run2.pdf", width = 16, height = 10)
