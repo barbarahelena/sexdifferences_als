@@ -1,41 +1,25 @@
 # TCAM microbiota data
 # Barbara Verhaar, barbara.verhaar@dkfz-heidelberg.de
 
-from importlib import reload
-
-# mprod imports
 from mprod.dimensionality_reduction import TCAM
 from mprod import table2tensor
-
-# Standard libraries
 import random
-import datetime
-import dateutil
-from itertools import combinations, product, islice
+from itertools import combinations
 from multiprocessing import Pool
-
-# Scientific computing
 import numpy as np
 import pandas as pd
 import re
-import scipy
-from sklearn.metrics import pairwise_distances, confusion_matrix, auc
-from sklearn.pipeline import Pipeline
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.model_selection import StratifiedKFold
-from sklearn.inspection import permutation_importance
-from sklearn.preprocessing import RobustScaler, StandardScaler, MinMaxScaler, FunctionTransformer
-from sklearn.ensemble import (
-    AdaBoostClassifier, RandomForestClassifier, BaggingClassifier, GradientBoostingClassifier
-)
-from sklearn.neural_network import MLPClassifier
-from sklearn.linear_model import LogisticRegressionCV, RidgeClassifier
-from sklearn.metrics import plot_roc_curve
-
-# Visualization
-import matplotlib as mpl
+from sklearn.metrics import pairwise_distances
+from scipy.stats import f
+from scipy.spatial.distance import pdist
+from scipy.spatial.distance import squareform
+from scipy.spatial.distance import cdist
+from scipy.special import betainc
+from scipy.stats import f as fdist
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import re
 
 # Set Seaborn style
 sns.set_style('ticks')
@@ -85,7 +69,6 @@ def Fstat(data, ss_t = None, N = None):
     ss_b = ss_t - ss_w
     return ss_b / (ss_w / (N - 2))
 
-
 def gen_rperm(meta, r):
     _mice_map = meta.loc[:, ['Participant', 'rGroup']].copy()
     _mice_map.drop_duplicates(inplace=True)
@@ -93,13 +76,10 @@ def gen_rperm(meta, r):
     gsizes = _mice_map.groupby('rGroup').size()
     g1size, g1label, g2label = gsizes[0], gsizes.index[0], gsizes.index[-1]
 
-    
     for combo in  random_combination(combinations(_mice_map.index, g1size), r):
         _mice_map['Group_perm'] = g2label
         _mice_map.loc[combo ,'Group_perm'] = g1label
         yield _mice_map['Group_perm'].to_dict()
-        
-import time 
 
 def _permfs(args):
     __data, tv, N, permdict = args
@@ -108,7 +88,6 @@ def _permfs(args):
     _data['rGroup22'] = _data['Participant2'].map(permdict)
     fstat = Fstat(_data, tv, N)
     return fstat
-
 
 def run_permanova(meta, data, nperms = 1000):
     _dmm = pairwise_melt_meta(meta, data)
@@ -119,7 +98,6 @@ def run_permanova(meta, data, nperms = 1000):
     N = len(set(_dmm['sample1'].tolist() + _dmm['sample2'].tolist()))
     total_var = ss_total(_dmm)
     fs_obs = Fstat(_dmm, total_var, N)
-
     
     with Pool(processes=5) as p:
         fs_perms = p.imap(_permfs, ((_dmm, total_var, N, dd) for dd in gen_rperm(meta, nperms)))
@@ -129,63 +107,47 @@ def run_permanova(meta, data, nperms = 1000):
     return ((fs_perms > fs_obs).sum() ) / (nperms ) 
 
 # Data import
-file_path = "data/microbiome_filtered.csv"
+file_path = "data/imputed_microbiome_data.csv"
 data_raw = pd.read_csv(file_path, index_col=[0, 1], sep=",")
 
 # Reset MultiIndex correctly
-data = data_raw.reset_index()  # Converts MultiIndex into columns
-data.rename(columns={data.columns[0]: "ID"}, inplace=True)  # Rename first index level
-
-meta_path = "data/meta_microbiome.csv"
-meta = pd.read_csv(meta_path, index_col=0, sep=",")
-print(meta.head())
-
-# Merge dataframes
-merged_df = data.merge(meta, on="ID")  # Merge on ID, which was the first index level
-print(merged_df.head())
-print(merged_df.columns)
+df1 = data_raw.reset_index()  # Converts MultiIndex into columns
+df1.rename(columns={df1.columns[0]: "ID"}, inplace=True)  # Rename first index level
+print(df1.head())
+print(df1.columns)
 
 # filepath: /omics/groups/OE0554/internal_temp/barbara/projects/als/scripts/2_6_tcam.py
 # Sort
-merged_df2 = merged_df.sort_values(by=['MouseID', 'Age_ints'], ascending=[True, True])
+df2 = df1.sort_values(by=['MouseID', 'Age_ints'], ascending=[True, True])
 print("Sorted DataFrame:")
-print(merged_df2.head())
+print(df2.head())
+print(df2.columns)
 
-# Reshape
-cols = ['MouseID', 'Age_ints'] + [col for col in merged_df2.iloc[:, 2:1466].columns]
-merged_df3 = merged_df2[cols].set_index(['MouseID', 'Age_ints'])
+# Reshape and normalize
+pseudocount = 0.1
+cols = ['MouseID', 'Age_ints'] + [col for col in df2.iloc[:, 7:141].columns]
+df3 = df2[cols]\
+    .set_index(['MouseID', 'Age_ints'])\
+    .groupby(level='MouseID')\
+    .apply(lambda x: np.log2((x + pseudocount) / (x.loc[x.index.get_level_values('Age_ints') == 6].mean() + pseudocount)))
 print("Reordered DataFrame with new index:")
-print(merged_df3.head())
-print(merged_df3.index)
-
-# Normalize data with a pseudocount
-pseudocount = 0.001
-data_normalized = merged_df3.groupby(level='MouseID')\
-                    .apply(lambda x: np.log2((x + pseudocount) / (x.query("Age_ints == 6").mean() + pseudocount)))
-data_normalized = data_normalized.reset_index(level=0, drop=True)
-print(data_normalized.head())
-print(data_normalized.index)
-
-# Filter timepoints 16 and smaller, excluding Age_ints 8
-data_filtered = data_normalized.query("Age_ints <= 16 and Age_ints != 8")
-print("Filtered data:")
-print(data_filtered.head())
-print(data_filtered.index)
+print(df3.head())
+print(df3.shape)
+df3.index = df3.index.droplevel(0)
+df3.index
 
 # Check for missing data and display only columns with missing values
-missing_data = data_filtered.isnull().sum()
+missing_data = df3.isnull().sum()
 missing_data = missing_data[missing_data > 0]
-print("Columns with missing data:")
-print(missing_data)
+print(missing_data) # no missing data
 
 # TCAM
-tensor_data, mode1_map, mode3_map = table2tensor(data_filtered, missing_flag=True)
+tensor_data, mode1_map, mode3_map = table2tensor(df3)
 mode1_reverse_map = {val:k for k,val in mode1_map.items()}
 print(tensor_data.shape)
 print(mode1_map)
 print(mode1_reverse_map)
 
-# TCAM 
 tcam = TCAM(n_components=None)    # will produce minimal number of components such that
                                 # total explained var > 99%
 
@@ -193,22 +155,22 @@ transformed_data = tcam.fit_transform(tensor_data)
 df_tca = pd.DataFrame(transformed_data).rename(index = mode1_reverse_map)
 rounded_expvar = np.round(100*tcam.explained_variance_ratio_, 2)
 df_tca.columns = [f'F{i}:{val}%' for i,val in enumerate(rounded_expvar, start = 1)]
-df_plot = meta.merge(df_tca, left_on = 'MouseID', right_index=True)
+df_plot = df1.iloc[:,1:7].merge(df_tca, left_on = 'MouseID', right_index=True)
 f1 = df_tca.columns[0]
-f2 = df_tca.columns[2]
+f2 = df_tca.columns[1]
 
 fig,ax  = plt.subplots(1,1, figsize=[4,4], dpi = 500)
 sns.scatterplot(data = df_plot, x = f1, y = f2 , hue='GenotypePerSex', ax = ax, edgecolor = 'k', linewidths=.1)
 ax.legend(loc='center left', fontsize = 6, fancybox = False, framealpha = 1, edgecolor = 'k', bbox_to_anchor=(1, 0.5))
 plt.savefig('results/microbiome/tcam/scatterplot.png', format='png', dpi=300, bbox_inches='tight')
 
-df_plot.to_csv('results/microbiome/tcam/df_plot.csv', index=False)
+df_plot.to_csv('results/microbiome/tcam/pythonoutput/df_plot.csv', index=False)
 
 # Permanova
 n_factors = (np.cumsum(tcam.explained_variance_ratio_) < .2).sum() + 1  # PC for 20% variance
 perm_res = pd.DataFrame(columns=['g1', 'g2', 'p'])
 # Ensure meta_perm is correctly defined
-meta_perm = meta
+meta_perm = df1.iloc[:,1:7]
 meta_perm['Participant'] = meta_perm['MouseID']
 print("meta_perm head:")
 print(meta_perm.head())
@@ -248,13 +210,13 @@ for g1, g2 in combinations(unique_values, 2):
         print("Error running PERMANOVA for {} vs {}: {}".format(g1, g2, e))
 
 print(perm_res)
-perm_res.to_csv("results/microbiome/tcam/perm_res.csv")
+perm_res.to_csv("results/microbiome/tcam/pythonoutput/perm_res.csv")
 
 # Loadings
 loadings = tcam.mode2_loadings
-df_loadings = pd.DataFrame(loadings, index =  data_normalized.iloc[:,0:].columns)
+df_loadings = pd.DataFrame(loadings, index =  df3.iloc[:,0:].columns)
 df_loadings.columns = [f'F{i}:{val}%' for i,val in enumerate(rounded_expvar, start = 1)]
-df_loadings.to_csv('results/microbiome/tcam/df_loadings.csv', index=True)
+df_loadings.to_csv('results/microbiome/tcam/pythonoutput/df_loadings.csv', index=True)
 
 # PC1
 loadings_f1 = df_loadings.iloc[:,0].sort_values().copy()
@@ -284,9 +246,9 @@ for i, row in loadings_f1.iterrows():
     ax.text(x=0.7, y=i, s = sname, fontdict={'size':3})
     
 ax.yaxis.set_tick_params(size = 3, length = 400,direction = 'inout')
-sns.despine( top=True,bottom=True,right=True,trim=True)
+sns.despine(top=True, bottom=True, right=True, trim=True)
 ax.spines['left'].set_position('zero')
-plt.savefig('results/microbiome/tcam/barplot_pc1.png', format='png', dpi=300, bbox_inches='tight')
+plt.savefig('results/microbiome/tcam/pythonoutput/barplot_pc1.png', format='png', dpi=300, bbox_inches='tight')
 
 # PC 2
 loadings_f2 = df_loadings.iloc[:,1].sort_values().copy()
@@ -315,7 +277,7 @@ for i, row in loadings_f2.iterrows():
     sname = sname.split(";")[-1]
     ax.text(x=0.7, y=i, s = sname, fontdict={'size':3})
     
-ax.yaxis.set_tick_params(size = 3, length = 400,direction = 'inout')
-sns.despine( top=True,bottom=True,right=True,trim=True)
+ax.yaxis.set_tick_params(size = 3, length = 400, direction = 'inout')
+sns.despine(top=True, bottom=True, right=True, trim=True)
 ax.spines['left'].set_position('zero')
-plt.savefig('results/microbiome/tcam/barplot_pc2.png', format='png', dpi=300, bbox_inches='tight')
+plt.savefig('results/microbiome/tcam/pythonoutput/barplot_pc2.png', format='png', dpi=300, bbox_inches='tight')
