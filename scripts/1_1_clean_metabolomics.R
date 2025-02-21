@@ -28,14 +28,33 @@ saveRDS(df, "data/metadata.RDS")
 met <- import("data/metabolomics.xlsx") %>% 
     select(!contains("Std") & !contains("Blank")) %>%
     mutate(compoundId = str_to_lower(compoundId))
+hmdb <- met[,1:2]
+hmdb <- hmdb %>% rename(metabolite = compoundId)
+saveRDS(hmdb, "data/hmdb_ids.RDS")
+
+met <- met[,c(1,3:ncol(met))]
 IDs <- colnames(met)[2:ncol(met)]
 rownames(met) <- met$compoundId
 met$compoundId <- NULL
-met <- apply(t(met), 2, function(x) log2(x + 0.01))
+
+met2 <- t(met)
+rownames(met2) <- IDs
+met2 <- as.data.frame(met2)
+colnames(met2) <- hmdb$HMDB[which(hmdb$metabolite == colnames(met2))]
+met2 <- met2[,1:ncol(met2)-1]
+met2$group <- meta$Intervention[which(meta$ID == rownames(met2))]
+met2 <- met2[,c("group", colnames(met2)[1:ncol(met2)-1])]
+write.csv(met2, "data/metabolomics_hmdb.csv")
+
+met3 <- met2 %>% filter(group == "TDP43")
+met3$group <- meta$Sex[which(meta$ID == rownames(met3))]
+write.csv(met3, "data/metabolomics_hmdb_tdp43.csv")
+
+met <- apply(t(met), 2, function(x) log10(x + 0.01))
 rownames(met) <- IDs
 met <- as.data.frame(met)
 head(met)
 dim(met)
 any(sapply(met, function(x) sum(is.na(x))))
-sapply(met, function(x) sd(x, na.rm = TRUE))
+sapply(met, function(x) sd(x))
 saveRDS(met, "data/metabolomics.RDS")
