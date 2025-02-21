@@ -43,15 +43,15 @@ theme_Publication <- function(base_size=14, base_family="sans") {
 } 
 
 ## Load data
-tcam <- read.csv("results/microbiome/tcam/df_plot.csv") %>% 
+tcam <- read.csv("results/microbiome/tcam/pythonoutput/df_plot.csv") %>% 
   select(1:17) %>% 
   mutate(Genotype = fct_relevel(Genotype, "WT", after = 0L),
           GenotypePerSex = fct_relevel(GenotypePerSex, "Female WT", after = 0L),
           GenotypePerSex = fct_relevel(GenotypePerSex, "Male WT", after = 1L))
 head(tcam)
-load <- read.csv("results/microbiome/tcam/df_loadings.csv")
+load <- read.csv("results/microbiome/tcam/pythonoutput/df_loadings.csv")
 head(load)
-mb <- readRDS("data/microbiome.RDS")
+mb <- readRDS("data/imputed_microbiome_data.RDS")
 meta <- readRDS("data/meta_microbiome.RDS")
 
 ## TCAM plot
@@ -59,45 +59,49 @@ tcam <- tcam %>% filter(Age_ints == 6)
 dim(tcam)
 head(tcam)
 names(tcam)
+f1n <- names(tcam)[7]
+f2n <- names(tcam)[8]
+f3n <- names(tcam)[9]
+f4n <- names(tcam)[10]
 
-(pl <- ggplot(data = tcam, aes(x = `F1.19.38.`, y = `F2.8.21.`, 
-                        color = GenotypePerSex, fill = GenotypePerSex)) +
+(pl <- ggplot(data = tcam, aes(x = .data[[f1n]], y = .data[[f2n]], 
+                        color = Sex, fill = Sex, shape = Sex)) +
         stat_ellipse(geom = "polygon", alpha = 0.3) +
-        geom_point() +
-        ggtitle('TCAM') +
-        scale_color_manual(values = pal_nejm()(4)) +
-        scale_fill_manual(values = pal_nejm()(4)) +
+        geom_point(size = 3, alpha = 0.75) +
+        ggtitle('TCAM: sex differences') +
+        scale_color_manual(values = pal_nejm()(2)) +
+        scale_fill_manual(values = pal_nejm()(2)) +
         theme_minimal() +
-        labs(x=str_c('F1 19.4%'), y=str_c('F2 8.2%')) +
+        labs(x=str_c(str_replace(f1n, "[.]", " "), "%"),
+            y=str_c(str_replace(f2n, "[.]", " "), "%")) +
         theme_Publication() +
         facet_wrap(~Genotype) +
         theme(legend.title = element_blank()))
-ggsave("results/microbiome/tcam/f1f2_scatter.pdf", width = 6, height = 6)      
+ggsave("results/microbiome/tcam/routput/f1f2_scatter.pdf", width = 6, height = 6)   
 
-(pl <- ggplot(data = tcam, aes(x = `F3.6.22.`, y = `F4.5.53.`, 
-                        color = GenotypePerSex, fill = GenotypePerSex)) +
-        stat_ellipse(geom = "polygon", alpha = 0.3) +
-        geom_point() +
+(pl <- ggplot(data = tcam, aes(x = .data[[f1n]], y = .data[[f2n]], 
+                        color = Genotype, fill = Genotype, shape = Sex)) +
+        #stat_ellipse(geom = "polygon", alpha = 0.3) +
+        geom_point(size = 5) +
         ggtitle('TCAM') +
-        scale_color_manual(values = pal_nejm()(4)) +
-        scale_fill_manual(values = pal_nejm()(4)) +
+        scale_color_manual(values = pal_nejm()(6)[c(6,3)]) +
+        scale_fill_manual(values = pal_nejm()(6)[c(6,3)]) +
         theme_minimal() +
-        labs(x=str_c('F3 6.2%'), y=str_c('F4 5.5%')) +
+        labs(x=str_c(str_replace(f1n, "[.]", " "), "%"),
+            y=str_c(str_replace(f2n, "[.]", " "), "%")) +
         theme_Publication() +
-        facet_wrap(~Genotype) +
         theme(legend.title = element_blank()))
-ggsave("results/microbiome/tcam/f3f4_scatter.pdf", width = 6, height = 6) 
-
+ggsave("results/microbiome/tcam/routput/f1f2_scatter_genotype.pdf", width = 6, height = 6) 
 
 ## Loading of component plots
 head(load)
 names(load)[1:10]
 last <- nrow(load)
 min10 <- last - 9
-f1 <- load %>% select(X, F1.19.38.) %>% arrange(-F1.19.38.) %>% slice(1:10, min10:last)
-f2 <- load %>% select(X, F2.8.21.) %>% arrange(-F2.8.21.) %>% slice(1:10, min10:last)
-f3 <- load %>% select(X, F3.6.22.) %>% arrange(-F3.6.22.) %>% slice(1:10, min10:last)
-f4 <- load %>% select(X, F4.5.53.) %>% arrange(-F4.5.53.) %>% slice(1:10, min10:last)
+f1 <- load %>% select(X, all_of(f1n)) %>% arrange(-.data[[f1n]]) %>% slice(1:10, min10:last)
+f2 <- load %>% select(X, all_of(f2n)) %>% arrange(-.data[[f2n]]) %>% slice(1:10, min10:last)
+f3 <- load %>% select(X, all_of(f3n)) %>% arrange(-.data[[f3n]]) %>% slice(1:10, min10:last)
+f4 <- load %>% select(X, all_of(f4n)) %>% arrange(-.data[[f4n]]) %>% slice(1:10, min10:last)
 
 plot_loadings <- function(data, title) {
   data$comp <- data[[2]]
@@ -110,80 +114,93 @@ plot_loadings <- function(data, title) {
 }
 
 plot_loadings(f1, "TCAM F1")
-ggsave("results/microbiome/tcam/loading_pc1.pdf", width = 6, height = 7)
+ggsave("results/microbiome/tcam/routput/loading_pc1.pdf", width = 8, height = 7)
 
 plot_loadings(f2, "TCAM F2")
-ggsave("results/microbiome/tcam/loading_pc2.pdf", width = 6, height = 7)
+ggsave("results/microbiome/tcam/routput/loading_pc2.pdf", width = 8, height = 7)
 
 plot_loadings(f3, "TCAM F3")
-ggsave("results/microbiome/tcam/loading_pc3.pdf", width = 6, height = 7)
+ggsave("results/microbiome/tcam/routput/loading_pc3.pdf", width = 8, height = 7)
 
 plot_loadings(f4, "TCAM F4")
-ggsave("results/microbiome/tcam/loading_pc4.pdf", width = 6, height = 7)
+ggsave("results/microbiome/tcam/routput/loading_pc4.pdf", width = 8, height = 7)
 
-## Lineplots
-mbsel <- mb %>% select(any_of(f1$X))
+# Lineplots
+min5 <- last - 4
+f1 <- load %>% select(X, all_of(f1n)) %>% arrange(-.data[[f1n]]) %>% slice(1:5, min5:last)
+
+## Transform data
+pseudocounts <- mb %>%  select(any_of(f1$X)) %>%
+  summarise(across(everything(), ~ min(.x[.x > 0], na.rm = TRUE) / 2))
+mbsel <- mb %>% ungroup(.) %>% select(any_of(f1$X), ID, Genotype, Age_ints, Sex, GenotypePerSex) %>%
+  mutate( across(f1$X, ~log10(.x + pseudocounts[[cur_column()]]))
+          ) %>%
+  rename_at(c(f1$X), ~str_remove(.x, " \\(.*\\)$"))
 head(mbsel)
-mbsel$ID <- rownames(mbsel)
-mbmerge <- left_join(mbsel, meta, by = "ID")
 
-## Calculate means and standard deviations per GenotypePerSex
-means_ses <- mbmerge %>%
-  group_by(GenotypePerSex, Age_ints) %>%
-  summarise(across(1:20, list(mean = ~mean(.x, na.rm = TRUE), 
-                        se = ~sd(.x, na.rm = TRUE) / sqrt(n()))))
+## Calculate means and standard deviations per Genotype
+means_ses <- mbsel %>%
+  group_by(Genotype, Age_ints) %>%
+  summarise(across(1:10, list(mean = ~mean(.x, na.rm = TRUE), 
+                        se = ~(sd(.x, na.rm = TRUE) / sqrt(n())))))
 means_ses
 
 # Convert means_ses to long format for plotting
 means_ses_long <- means_ses %>%
-  pivot_longer(cols = c(-GenotypePerSex, -Age_ints), 
-                        names_to = c("microbe", ".value"), names_sep = "_") %>%
-  filter(Age_ints < 20)
+  pivot_longer(cols = c(-Genotype, -Age_ints), 
+                        names_to = c("microbe", ".value"), names_sep = "_")
+mbsel_long <- mbsel %>%
+  pivot_longer(cols = c(-ID, -Genotype, -Age_ints, -GenotypePerSex, -Sex), 
+                        names_to = "microbe", values_to = "value")
 
 # Plot means with error bars representing standard deviations
 ggplot(means_ses_long, aes(x = Age_ints, y = mean, 
-                group = GenotypePerSex, color = GenotypePerSex)) +
+                group = Genotype, color = Genotype)) +
   geom_line() +
-  geom_point() +
-  scale_color_nejm() +
+  geom_point(size = 0.5) +
+  geom_jitter(data = mbsel_long, aes(x = Age_ints, y = value, color = Genotype),
+                width = 0.1, alpha = 0.7) +
+  scale_color_manual(values = pal_nejm()(8)[c(3,6)]) +
   geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
-  labs(title = "Means and Standard Deviations per GroupPerSex",
+  labs(title = "Abundance over time - TDP43 vs WT",
        x = "Age (weeks)",
-       y = "Relative abundance") +
-  facet_wrap(~ microbe, scales = "free") +
+       y = "log10(relative abundance)") +
+  scale_x_continuous(breaks = c(6,8,10,12,14,16)) +
+  facet_wrap(~ microbe, scales = "free", nrow = 2) +
   theme_Publication() +
   theme(strip.text = element_text(size = 8))
-ggsave("results/microbiome/tcam/lineplots.pdf", width = 20, height = 15)
+ggsave("results/microbiome/tcam/routput/lineplots_genotype_log10.pdf", width = 15, height = 8)
 
-# Plot means with error bars representing standard deviations
+## Calculate means and standard deviations per Genotype
+means_ses <- mbsel %>% filter(Genotype == "TDP43") %>%
+  group_by(Sex, Age_ints) %>%
+  summarise(across(1:10, list(mean = ~mean(.x, na.rm = TRUE), 
+                        se = ~(sd(.x, na.rm = TRUE) / sqrt(n())))))
+means_ses
+
+# Convert means_ses to long format for plotting
+means_ses_long <- means_ses %>%
+  pivot_longer(cols = c(-Sex, -Age_ints), 
+                        names_to = c("microbe", ".value"), names_sep = "_")
+mbsel_long <- mbsel %>%
+  pivot_longer(cols = c(-ID, -Genotype, -Age_ints, -GenotypePerSex, -Sex), 
+                        names_to = "microbe", values_to = "value")
+
+# Line plots TDP43 - sex differences
 ggplot(means_ses_long, aes(x = Age_ints, y = mean, 
-                group = GenotypePerSex, color = GenotypePerSex)) +
+                group = Sex, color = Sex)) +
   geom_line() +
-  geom_point() +
+  geom_jitter(data = mbsel_long %>% filter(Genotype == "TDP43"), aes(x = Age_ints, y = value, 
+                color = Sex),
+                width = 0.1, alpha = 0.7) +
   scale_color_nejm() +
   geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
-  labs(title = "Means and Standard Deviations per GroupPerSex",
+  labs(title = "Abundance over time for TDP43 - males and females",
        x = "Age (weeks)",
-       y = "Relative abundance") +
-  facet_wrap(~ microbe, scales = "free") +
+       y = "log10(relative abundance)") +
+  scale_x_continuous(breaks = c(6,8,10,12,14,16)) +
+  facet_wrap(~ microbe, scales = "free", nrow = 2) +
   theme_Publication() +
   theme(strip.text = element_text(size = 8))
-ggsave("results/microbiome/tcam/lineplots_genotype.pdf", width = 20, height = 15)
+ggsave("results/microbiome/tcam/routput/lineplots_tdp43_sex.pdf", width = 15, height = 8)
 
-# Create a summary table counting the number of samples per group per timepoint
-sample_counts <- meta %>%
-  group_by(GenotypePerSex, Age_ints) %>%
-  summarise(count = n()) %>%
-  ungroup()
-
-# Plot the bar plot
-ggplot(sample_counts, aes(x = Age_ints, y = count, fill = GenotypePerSex)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "Number of samples",
-       x = "Age (weeks)",
-       y = "Number of samples") +
-  scale_fill_nejm() +
-  scale_x_continuous(n.breaks = 16) +
-  theme_Publication() +
-  theme(legend.title = element_blank())
-ggsave("results/microbiome/sample_counts_barplot.pdf", width = 10, height = 6)
