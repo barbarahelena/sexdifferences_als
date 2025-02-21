@@ -39,13 +39,13 @@ theme_Publication <- function(base_size=12, base_family="sans") {
 } 
 
 ### Data ###
-df <- readRDS("data/metabolomics.RDS")
+df <- readRDS("data/metabolomics.RDS") 
 allmets <- names(df)
 df$ID <- rownames(df)
 meta <- readRDS("data/metadata.RDS")
-df <- right_join(df, meta, by = "ID")
-tests <- rio::import("results/ttests/metabolites_welcht_diff.csv")
-tests2 <- rio::import("results/ttests/metabolites_welcht_ctrl_diff.csv")
+df <- right_join(df, meta, by = "ID") %>% mutate(Sex = fct_rev(Sex))
+tests <- rio::import("results/metabolomics/ttests/metabolites_welcht_diff.csv")
+tests2 <- rio::import("results/metabolomics/ttests/metabolites_welcht_ctrl_diff.csv")
 qval_sig <- unique(c(tests$metabolite[which(tests$q.value < 0.05)], tests2$metabolite[which(tests2$q.value < 0.05)]))
 pval_sig <- unique(c(tests$metabolite[which(tests$p.value < 0.05)], tests2$metabolite[which(tests2$p.value < 0.05)]))
 
@@ -55,30 +55,32 @@ for(a in 1:length(pval_sig)){
     metab <- pval_sig[a]
     metname <- paste0(pval_sig[a])
     print(metname)
-    dfmet <- df %>% select(GroupPerSex, all_of(metname))
-    dfmet$met_y <- scale(dfmet[,2])
-    comp <- list(c("Female Control", "Male Control"), c("Female TDP43", "Male TDP43"))
-    (pl <- ggplot(data = dfmet, aes(x = GroupPerSex, y = met_y)) + 
+    dfmet <- df %>% select(Sex, Intervention, all_of(metname))
+    dfmet$met_y <- scale(dfmet[,3])
+    # comp <- list(c("Female Control", "Male Control"), c("Female TDP43", "Male TDP43"))
+    comp <- list(c("Female", "Male"))
+    (pl <- ggplot(data = dfmet, aes(x = Sex, y = met_y)) + 
             ggpubr::stat_compare_means(method = "t.test", label = "p.signif", comparisons = comp,
                                        hide.ns = TRUE, size = 5, #step.increase = 0.1,
                                        var.equal = FALSE) +
-            geom_boxplot(aes(fill = GroupPerSex), outlier.shape = NA, 
+            geom_boxplot(aes(fill = Sex), outlier.shape = NA, 
                          width = 0.5, alpha = 0.9) +
             geom_jitter(color = "grey5", height = 0, width = 0.1, alpha = 0.75) +
-            scale_fill_manual(guide = "none", values = pal_nejm()(4)) +
-            ylim(NA, max(dfmet$met_y)*2) +
+            scale_fill_manual(guide = "none", values = pal_nejm()(2)) +
+            # ylim(NA, max(dfmet$met_y)*2) +
             labs(title=metname, y="Metabolite (z-score)", x = "") +
+            facet_wrap(~Intervention) +
             theme_Publication() +
             theme(axis.text.x = element_text(angle = 45, hjust = 1)))
-    ggsave(str_c("results/boxplots/", metname, ".pdf"), width = 4, height = 5.5, device = "pdf")
-    ggsave(str_c("results/boxplots/", metname, ".svg"), width = 4, height = 5.5, device = "svg")
+    ggsave(str_c("results/metabolomics/boxplots/", metname, ".pdf"), width = 4, height = 5.5, device = "pdf")
+    ggsave(str_c("results/metabolomics/boxplots/", metname, ".svg"), width = 4, height = 5.5, device = "svg")
     res_box[[a]] <- pl
 }
 
-pdf("results/boxplots/boxplots_met.pdf", width = 15, height = 22)
+pdf("results/metabolomics/boxplots/boxplots_met.pdf", width = 15, height = 22)
 gridExtra::grid.arrange(grobs=res_box, ncol=5)
 dev.off()
 
-svg("results/boxplots/boxplots_met.svg", width = 15, height = 22)
+svg("results/metabolomics/boxplots/boxplots_met.svg", width = 15, height = 22)
 gridExtra::grid.arrange(grobs=res_box, ncol=5)
 dev.off()
