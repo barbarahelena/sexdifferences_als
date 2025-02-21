@@ -12,7 +12,10 @@ sample*
 *.sh
 .vscode/
 als_*
-pipeline_output/*
+pipeline_output/
+presentations/
+scripts/archive/
+.gitignore
 
 # History files
 .Rhistory
