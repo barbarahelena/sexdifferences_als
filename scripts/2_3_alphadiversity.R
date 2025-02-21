@@ -53,19 +53,32 @@ rowSums(mb)
 shannon <- vegan::diversity(mb, index = 'shannon')
 df_shan <- data.frame(ID = names(shannon), shannon = shannon)
 df_shan <- left_join(df_shan, df, by = "ID")
-(plshan <- ggplot(data = df_shan, aes(x = as.factor(Age_ints), 
+(plshan <- ggplot(data = df_shan %>% filter(Age_ints < 20), aes(x = as.factor(Age_ints), 
                         y = shannon, fill = Genotype,
                         group = interaction(as.factor(Age_ints), Genotype))) +
-    scale_fill_manual(values = pal_nejm()(4)[3:4]) +
+    scale_fill_manual(values = pal_nejm()(6)[c(3,6)]) +
     stat_compare_means(aes(group = interaction(as.factor(Age_ints), Genotype)), 
             method = "wilcox.test", label = "p.signif", hide.ns = TRUE) + 
     geom_boxplot(outlier.shape = NA) +
     geom_jitter(position = position_dodge(0.75)) +
     labs(title = "Shannon index", y = "Shannon index", x="Age (weeks)") +
-    facet_wrap(~ Sex) +
     theme_Publication())
 #ggsave(plshan, filename = "results/microbiome/alphadiversity/shannon.svg", width = 12, height = 5)
-ggsave(plshan, filename = "results/microbiome/alphadiversity/shannon.pdf", width = 12, height = 5)
+ggsave(plshan, filename = "results/microbiome/alphadiversity/shannon.pdf", width = 7, height = 5)
+
+(plshan <- ggplot(data = df_shan %>% filter(Age_ints < 20), aes(x = as.factor(Age_ints), 
+                        y = shannon, fill = Sex,
+                        group = interaction(as.factor(Age_ints), Sex))) +
+    scale_fill_manual(values = pal_nejm()(2)) +
+    stat_compare_means(aes(group = interaction(as.factor(Age_ints), Sex)), 
+            method = "wilcox.test", label = "p.signif", hide.ns = TRUE) + 
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(position = position_dodge(0.75)) +
+    labs(title = "Shannon index", y = "Shannon index", x="Age (weeks)") +
+    facet_wrap(~Genotype, nrow = 2) +
+    theme_Publication())
+#ggsave(plshan, filename = "results/microbiome/alphadiversity/shannon.svg", width = 12, height = 5)
+ggsave(plshan, filename = "results/microbiome/alphadiversity/shannon_sex.pdf", width = 7, height = 10)
 
 ## Simpsons
 simpson <- vegan::diversity(mb, index = 'simpson')
