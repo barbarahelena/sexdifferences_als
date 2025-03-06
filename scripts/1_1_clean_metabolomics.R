@@ -42,13 +42,25 @@ rownames(met2) <- IDs
 met2 <- as.data.frame(met2)
 colnames(met2) <- hmdb$HMDB[which(hmdb$metabolite == colnames(met2))]
 met2 <- met2[,1:ncol(met2)-1]
-met2$group <- meta$Intervention[which(meta$ID == rownames(met2))]
+met2$group <- df$Intervention[which(df$ID == rownames(met2))]
 met2 <- met2[,c("group", colnames(met2)[1:ncol(met2)-1])]
 write.csv(met2, "data/metabolomics_hmdb.csv")
 
 met3 <- met2 %>% filter(group == "TDP43")
-met3$group <- meta$Sex[which(meta$ID == rownames(met3))]
+met3$group <- df$Sex[which(df$ID == rownames(met3))]
 write.csv(met3, "data/metabolomics_hmdb_tdp43.csv")
+
+met3a <- met2 %>% filter(group == "WT")
+met3a$group <- df$Sex[which(df$ID == rownames(met3))]
+write.csv(met3a, "data/metabolomics_hmdb_wt.csv")
+
+met4 <- met2
+met4$Sex <- df$Sex[which(df$ID == rownames(met4))]
+met5 <- met4 %>% filter(Sex == "Female") %>% select(group, everything(.), -Sex)
+write.csv(met5, "data/metabolomics_hmdb_female.csv")
+
+met6 <- met4 %>% filter(Sex == "Male") %>% select(group, everything(.), -Sex)
+write.csv(met6, "data/metabolomics_hmdb_male.csv")
 
 met <- apply(t(met), 2, function(x) log10(x + 0.01))
 rownames(met) <- IDs
