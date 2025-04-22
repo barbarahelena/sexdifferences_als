@@ -63,7 +63,7 @@ df$GroupPerSex <- als$GroupPerSex[match(df$ID, als$ID)]
 df$ID <-als$ID[match(df$ID, als$ID)]
 df <- df %>% arrange(Group)
 
-(pca <- ggplot(df, aes(x=PC1, y=PC2, color=Group)) +
+(pca1 <- ggplot(df, aes(x=PC1, y=PC2, color=Group)) +
         stat_ellipse(geom = "polygon", aes(fill = Group, color = Group),
                      alpha = 0.3) +
         geom_point(size = 3, aes(shape = Sex)) +
@@ -76,16 +76,16 @@ df <- df %>% arrange(Group)
         theme(legend.title = element_blank()))
 ggsave("results/metabolomics/pca/pca_groups.pdf", width = 5, height = 4.5)
 
-(pca <- ggplot(df, aes(x=PC1, y=PC2, color=Sex)) +
+(pca2 <- ggplot(df, aes(x=PC1, y=PC2, color=Sex)) +
         stat_ellipse(geom = "polygon", aes(fill = Sex, color = Sex),
                      alpha = 0.3) +
         geom_point(size = 3, aes(shape = Sex)) +
-        ggtitle('PCA plasma metabolites') +
+        ggtitle('PCA: sex differences') +
         scale_color_manual(values = pal_nejm()(2)) +
         scale_fill_manual(values = pal_nejm()(2)) +
         theme_minimal() +
         labs(x=str_c('PC1 ', pc1_ev, '%'), y=str_c('PC2 ', pc2_ev, '%')) +
-        facet_wrap(~Group, nrow = 2) +
+        facet_wrap(~Group, nrow = 1) +
         theme_Publication() +
         theme(legend.title = element_blank()))
 ggsave("results/metabolomics/pca/pca_sex.pdf", width = 5, height = 8)

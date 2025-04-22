@@ -107,27 +107,6 @@ df_imputed_wide %>% # AFTER IMPUTATION
 write.csv(df_imputed_wide, "data/imputed_microbiome_data.csv", row.names = FALSE)
 saveRDS(df_imputed_wide, "data/imputed_microbiome_data.RDS")
 
-# Transform imputed df
-log_and_normalize <- function(x, age_ints) {
-  week6_value <- x[age_ints == 6]
-  log2((x + 0.001) / (week6_value + 0.001))
-}
-rowSums(df_imputed_wide[, 8:141])
-
-# Apply the log2 transformation and normalization
-data_normalized <- df_imputed_wide %>%
-  arrange(MouseID, Age_ints) %>%
-  group_by(MouseID) %>%
-  mutate(across(c("Muribaculaceae bacterium Isolate-037 (Harlan)":"Synergistes sp. Zagget9"), 
-          ~ log_and_normalize(.x, Age_ints))) %>%
-  ungroup()
-head(data_normalized)[1:5, c(2,3,9)]
-head(df_imputed_wide %>% arrange(MouseID))[1:5, c(2,3,9)]
-
-# Save the normalized-to-6wk df
-write.csv(data_normalized, "data/imputed_norm_microbiome_data.csv", row.names = FALSE)
-saveRDS(data_normalized, "data/imputed_norm_microbiome_data.RDS")
-
 # Lineplot before and after imp as example
 microbiome_var <- microbiome_cols[1]  # Select the first microbiome variable for plotting
 data_before_imputation <- df %>%

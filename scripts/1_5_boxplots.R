@@ -44,8 +44,8 @@ allmets <- names(df)
 df$ID <- rownames(df)
 meta <- readRDS("data/metadata.RDS")
 df <- right_join(df, meta, by = "ID") %>% mutate(Sex = fct_rev(Sex))
-tests <- rio::import("results/metabolomics/ttests/metabolites_welcht_diff.csv")
-tests2 <- rio::import("results/metabolomics/ttests/metabolites_welcht_ctrl_diff.csv")
+tests <- rio::import("results/metabolomics/ttests/metabolites_welcht_tdp_sex_diff.csv")
+tests2 <- rio::import("results/metabolomics/ttests/metabolites_welcht_ctrl_sex_diff.csv")
 qval_sig <- unique(c(tests$metabolite[which(tests$q.value < 0.05)], tests2$metabolite[which(tests2$q.value < 0.05)]))
 pval_sig <- unique(c(tests$metabolite[which(tests$p.value < 0.05)], tests2$metabolite[which(tests2$p.value < 0.05)]))
 
@@ -67,20 +67,29 @@ for(a in 1:length(pval_sig)){
                          width = 0.5, alpha = 0.9) +
             geom_jitter(color = "grey5", height = 0, width = 0.1, alpha = 0.75) +
             scale_fill_manual(guide = "none", values = pal_nejm()(2)) +
-            # ylim(NA, max(dfmet$met_y)*2) +
-            labs(title=metname, y="Metabolite (z-score)", x = "") +
+            labs(title=str_wrap(metname, width = 20), y="Metabolite (z-score)", x = "") +
             facet_wrap(~Intervention) +
+            scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
             theme_Publication() +
             theme(axis.text.x = element_text(angle = 45, hjust = 1)))
-    ggsave(str_c("results/metabolomics/boxplots/", metname, ".pdf"), width = 4, height = 5.5, device = "pdf")
-    ggsave(str_c("results/metabolomics/boxplots/", metname, ".svg"), width = 4, height = 5.5, device = "svg")
-    res_box[[a]] <- pl
+    dftdp <- dfmet %>% filter(Intervention == "TDP43")
+    test <- t.test(dftdp[[3]] ~ dftdp$Sex)
+    #ggsave(str_c("results/metabolomics/boxplots/", metname, ".pdf"), width = 4, height = 5.5, device = "pdf")
+    #ggsave(str_c("results/metabolomics/boxplots/", metname, ".svg"), width = 4, height = 5.5, device = "svg")
+    if(test$p.value < 0.05){
+      res_box[[a]] <- pl
+    } else {
+      next
+    }
 }
 
-pdf("results/metabolomics/boxplots/boxplots_met.pdf", width = 15, height = 22)
-gridExtra::grid.arrange(grobs=res_box, ncol=5)
-dev.off()
+# pdf("results/metabolomics/boxplots/boxplots_met.pdf", width = 15, height = 22)
+# gridExtra::grid.arrange(grobs=res_box, ncol=5)
+# dev.off()
 
-svg("results/metabolomics/boxplots/boxplots_met.svg", width = 15, height = 22)
-gridExtra::grid.arrange(grobs=res_box, ncol=5)
-dev.off()
+# svg("results/metabolomics/boxplots/boxplots_met.svg", width = 15, height = 22)
+# gridExtra::grid.arrange(grobs=res_box, ncol=5)
+# dev.off()
+
+length(res_box)
+(boxplots <- ggarrange(plotlist = res_box, nrow = 3, ncol = 4, labels = LETTERS[6:(6+length(res_box))]))

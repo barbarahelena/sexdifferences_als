@@ -8,7 +8,6 @@ library(tidyverse)
 library(ggplot2)
 library(ggpubr)
 library(ggsci)
-library(aplot)
 library(doParallel)
 registerDoParallel(8)
 
@@ -63,7 +62,7 @@ dbray$ID <- rownames(dbray)
 dbray <- left_join(dbray, df, by = 'ID') # add metadata / covariates
 
 #### Bray-Curtis per time point ####
-braypertimepoint_mice <- function(timepoint, df = dfanova, tab = mb) {
+braypertimepoint_mice <- function(timepoint, df = dbray, tab = mb) {
     set.seed(14)
     dfsel <- df %>% filter(Age_weeks == timepoint)
     bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
@@ -101,14 +100,14 @@ res$pvalue <- as.numeric(res$pvalue)
                     facet_wrap(~ Age_weeks))
 ggsave(braycurt, filename = "results/microbiome/betadiversity/PCoA_BrayCurtis_genotype.pdf", width = 8, height = 8)
 
+
+### Bray-Curtis sex differences ###
 braypertimepoint_sex <- function(timepoint, mouse, df = dfanova, tab = mb) {
     set.seed(14)
     dfsel <- df %>% filter(Age_weeks == timepoint & Genotype == mouse)
     bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
     print(adonis2(bray ~ Sex, data = dfsel))
 }
-
-
 
 braypertimepoint_sex(timepoint = "8 weeks", mouse = "WT")
 braypertimepoint_sex(timepoint = "10 weeks", mouse = "WT")

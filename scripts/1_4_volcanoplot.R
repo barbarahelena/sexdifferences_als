@@ -17,7 +17,7 @@ calculate_log2_fold_change <- function(df) {
 calculate_log2_fold_change2 <- function(df) {
   # Ensure the data frame is grouped by metabolite
   df <- df %>% group_by(metabolite) %>%
-        mutate(log2fold = mean[Intervention == "TDP43"] - mean[Intervention == "Control"])
+        mutate(log2fold = mean[Intervention == "TDP43"] - mean[Intervention == "WT"])
   return(df)
 }
 
@@ -53,10 +53,10 @@ theme_Publication <- function(base_size=12, base_family="sans") {
 } 
 
 ## Female-male ctrl
-res1 <- rio::import("results/metabolomics/ttests/metabolites_welcht_ctrl_diff.csv")
+res1 <- rio::import("results/metabolomics/ttests/metabolites_welcht_ctrl_sex_diff.csv")
 res1 <- calculate_log2_fold_change(res1)
 res1
-df_sum <- res1 %>% filter(Sex == "Female")
+df_sum <- res1 %>% filter(Sex == "Female") # otherwise everything double
 head(df_sum)
 
 ## Volcano plot
@@ -78,10 +78,9 @@ sigdir = case_when(
     ) %>% 
     ungroup(.) 
 df_sum
-#df_sum$rank <- c(c(-53:-1), c(39:1))
 
 set.seed(1234)
-ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = delabel)) +
+(plwt <- ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = delabel)) +
     theme_Publication() +
     theme(axis.title = element_text(size = rel(0.8))) +
     geom_hline(aes(yintercept = -log10(0.05)), color = "darkgrey", linetype = "dashed") +
@@ -95,16 +94,17 @@ ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = del
     scale_color_manual(values = c(ggsci::pal_lancet()(2)), guide = "none") +
     #scale_x_continuous(limits = c(-0.75, 0.75), n.breaks = 6) +
     labs(x = "Log2 fold change (Female - Male)",
-         y = "-log10(p-value)")
+         y = "-log10(p-value)",
+         title = "WT mice: sex difference"))
 
 ggsave("results/metabolomics/volcanoplots/volcanoplot_ctrl.pdf", width = 5, height = 5, device = "pdf")
 ggsave("results/metabolomics/volcanoplots/volcanoplot_ctrl.svg", width = 5, height = 5, device = "svg")
 
 ## Female-male TDP43
-res2 <- rio::import("results/metabolomics/ttests/metabolites_welcht_diff.csv")
+res2 <- rio::import("results/metabolomics/ttests/metabolites_welcht_tdp_sex_diff.csv")
 res2 <- calculate_log2_fold_change(res2)
 res2
-df_sum <- res2 %>% filter(Sex == "Female")
+df_sum <- res2 %>% filter(Sex == "Female") # to deduplicate
 head(df_sum)
 
 ## Volcano plot
@@ -126,10 +126,9 @@ sigdir = case_when(
     ) %>% 
     ungroup(.) 
 df_sum
-#df_sum$rank <- c(c(-53:-1), c(39:1))
 
 set.seed(1234)
-ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = delabel)) +
+(pltdp <- ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = delabel)) +
     theme_Publication() +
     theme(axis.title = element_text(size = rel(0.8))) +
     geom_hline(aes(yintercept = -log10(0.05)), color = "darkgrey", linetype = "dashed") +
@@ -143,16 +142,17 @@ ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = del
     scale_color_manual(values = c(ggsci::pal_lancet()(2)), guide = "none") +
     #scale_x_continuous(limits = c(-1, 1), breaks = c(-1,-0.75,-0.5,-0.25,0,0.25,0.5,0.75,1.0)) +
     labs(x = "Log2 fold change (Female - Male)",
-         y = "-log10(p-value)")
+         y = "-log10(p-value)",
+         title = "TDP43 mice: sex difference"))
 
 ggsave("results/metabolomics/volcanoplots/volcanoplot_tdp43.pdf", width = 5, height = 5, device = "pdf")
 ggsave("results/metabolomics/volcanoplots/volcanoplot_tdp43.svg", width = 5, height = 5, device = "svg")
 
 ## TDP43 - Control (male and female together)
-res3 <- rio::import("results/metabolomics/ttests/metabolites_welcht_mice_diff.csv")
+res3 <- rio::import("results/metabolomics/ttests/metabolites_welcht_genotype_diff.csv")
 res3 <- calculate_log2_fold_change2(res3)
 res3
-df_sum <- res3 %>% filter(Intervention == "TDP43")
+df_sum <- res3 %>% filter(Intervention == "TDP43") # to deduplicate
 head(df_sum)
 
 ## Volcano plot
@@ -174,10 +174,9 @@ sigdir = case_when(
     ) %>% 
     ungroup(.) 
 df_sum
-#df_sum$rank <- c(c(-53:-1), c(39:1))
 
 set.seed(1234)
-ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = delabel)) +
+(plgeno <- ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = delabel)) +
     theme_Publication() +
     theme(axis.title = element_text(size = rel(0.8))) +
     geom_hline(aes(yintercept = -log10(0.05)), color = "darkgrey", linetype = "dashed") +
@@ -191,13 +190,14 @@ ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = del
     scale_color_manual(values = c(ggsci::pal_lancet()(2)), guide = "none") +
     #scale_x_continuous(limits = c(-1, 1), breaks = c(-1,-0.75,-0.5,-0.25,0,0.25,0.5,0.75,1.0)) +
     labs(x = "Log2 fold change (TDP43 - Control)",
-         y = "-log10(p-value)")
+         y = "-log10(p-value)",
+         title = "All mice: genotype"))
 
 ggsave("results/metabolomics/volcanoplots/volcanoplot_all.pdf", width = 5, height = 5, device = "pdf")
 ggsave("results/metabolomics/volcanoplots/volcanoplot_all.svg", width = 5, height = 5, device = "svg")
 
 ## TDP43 - Control (female)
-res4 <- rio::import("results/metabolomics/ttests/metabolites_welcht_mice_fem_diff.csv")
+res4 <- rio::import("results/metabolomics/ttests/metabolites_welcht_fem_diff.csv")
 res4 <- calculate_log2_fold_change2(res4)
 res4
 df_sum <- res4 %>% filter(Intervention == "TDP43")
@@ -222,7 +222,6 @@ sigdir = case_when(
     ) %>% 
     ungroup(.) 
 df_sum
-#df_sum$rank <- c(c(-53:-1), c(39:1))
 
 set.seed(1234)
 ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = delabel)) +
@@ -245,7 +244,7 @@ ggsave("results/metabolomics/volcanoplots/volcanoplot_tdp43_fem.pdf", width = 5,
 ggsave("results/metabolomics/volcanoplots/volcanoplot_tdp43_fem.svg", width = 5, height = 5, device = "svg")
 
 ## TDP43 - Control (male)
-res5 <- rio::import("results/metabolomics/ttests/metabolites_welcht_mice_male_diff.csv")
+res5 <- rio::import("/omics/groups/OE0554/internal_temp/barbara/projects/als/results/metabolomics/ttests/metabolites_welcht_male_diff.csv")
 res5 <- calculate_log2_fold_change2(res5)
 res5
 df_sum <- res5 %>% filter(Intervention == "TDP43")
@@ -270,7 +269,6 @@ sigdir = case_when(
     ) %>% 
     ungroup(.) 
 df_sum
-#df_sum$rank <- c(c(-53:-1), c(39:1))
 
 set.seed(1234)
 ggplot(df_sum, aes(x = log2fold, y = -log10(p.value), color = group, label = delabel)) +
