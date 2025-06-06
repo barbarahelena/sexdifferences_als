@@ -9,7 +9,7 @@ library(rio)
 library(ggsci)
 
 # Load data
-met <- readRDS("data/metabolomics.RDS")
+met <- readRDS("data/metabolome/metabolomics.RDS")
 meta <- readRDS("data/metadata.RDS")
 
 res_ctrl <- rio::import("results/metabolomics/ttests/metabolites_welcht_ctrl_sex_sig.csv")
@@ -29,6 +29,7 @@ combined_results <- resfull_ctrl %>%
     by = "metabolite", 
     suffix = c("_ctrl", "_tdp43")
   )
+write.csv(combined_results$metabolite, "results/metabolomics/ttests/sig_metabolites.csv", row.names = FALSE)
 
 # Prepare metabolite data matrix
 met_matrix <- met %>%

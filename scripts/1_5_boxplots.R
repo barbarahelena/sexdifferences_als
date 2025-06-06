@@ -5,6 +5,7 @@
 library(tidyverse)
 library(ggpubr)
 library(gridExtra)
+library(ggsci)
 
 theme_Publication <- function(base_size=12, base_family="sans") {
     library(grid)
@@ -39,7 +40,7 @@ theme_Publication <- function(base_size=12, base_family="sans") {
 } 
 
 ### Data ###
-df <- readRDS("data/metabolomics.RDS") 
+df <- readRDS("data/metabolome/metabolomics.RDS") 
 allmets <- names(df)
 df$ID <- rownames(df)
 meta <- readRDS("data/metadata.RDS")
@@ -69,13 +70,13 @@ for(a in 1:length(pval_sig)){
             scale_fill_manual(guide = "none", values = pal_nejm()(2)) +
             labs(title=str_wrap(metname, width = 20), y="Metabolite (z-score)", x = "") +
             facet_wrap(~Intervention) +
-            scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+            scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +
             theme_Publication() +
             theme(axis.text.x = element_text(angle = 45, hjust = 1)))
     dftdp <- dfmet %>% filter(Intervention == "TDP43")
     test <- t.test(dftdp[[3]] ~ dftdp$Sex)
-    #ggsave(str_c("results/metabolomics/boxplots/", metname, ".pdf"), width = 4, height = 5.5, device = "pdf")
-    #ggsave(str_c("results/metabolomics/boxplots/", metname, ".svg"), width = 4, height = 5.5, device = "svg")
+    ggsave(str_c("results/metabolomics/boxplots/", metname, ".pdf"), width = 4, height = 5.5, device = "pdf")
+    # ggsave(str_c("results/metabolomics/boxplots/", metname, ".svg"), width = 4, height = 5.5, device = "svg")
     if(test$p.value < 0.05){
       res_box[[a]] <- pl
     } else {
@@ -83,9 +84,9 @@ for(a in 1:length(pval_sig)){
     }
 }
 
-# pdf("results/metabolomics/boxplots/boxplots_met.pdf", width = 15, height = 22)
-# gridExtra::grid.arrange(grobs=res_box, ncol=5)
-# dev.off()
+pdf("results/metabolomics/boxplots/boxplots_met.pdf", width = 15, height = 14)
+gridExtra::grid.arrange(grobs=res_box, ncol=5)
+dev.off()
 
 # svg("results/metabolomics/boxplots/boxplots_met.svg", width = 15, height = 22)
 # gridExtra::grid.arrange(grobs=res_box, ncol=5)

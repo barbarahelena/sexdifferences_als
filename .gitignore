@@ -67,3 +67,7 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+pipelineoutput_humancohort/
+results_humancohort/
+.Rprofile

@@ -62,8 +62,8 @@ tcam <- read.csv("results/microbiome/tcam/pythonoutput/df_plot.csv") %>%
 head(tcam)
 load <- read.csv("results/microbiome/tcam/pythonoutput/df_loadings.csv")
 head(load)
-mb <- readRDS("data/imputed_microbiome_data.RDS")
-meta <- readRDS("data/meta_microbiome.RDS")
+mb <- readRDS("data/microbiome/imputed_microbiome_data.RDS")
+meta <- readRDS("data/microbiome/meta_microbiome.RDS")
 
 ## PERMANOVAs ##
 tcam <- tcam %>% filter(Age_ints == 6) 
@@ -147,8 +147,10 @@ head(load)
 names(load)[1:10]
 last <- nrow(load)
 min10 <- last - 9
-f1 <- load %>% select(X, all_of(f1n)) %>% arrange(-.data[[f1n]]) %>% slice(1:10, min10:last)
-f2 <- load %>% select(X, all_of(f2n)) %>% arrange(-.data[[f2n]]) %>% slice(1:10, min10:last)
+f1 <- load %>% select(X, all_of(f1n)) %>% arrange(-.data[[f1n]])
+f1 <- f1[c(1:10, min10:last),]
+f2 <- load %>% select(X, all_of(f2n)) %>% arrange(-.data[[f2n]])
+f2 <- f2[c(1:10, min10:last),]
 
 (f1plot <- plot_loadings(f1, "TCAM F1"))
 ggsave("results/microbiome/tcam/routput/loading_pc1.pdf", width = 8, height = 7)
@@ -157,7 +159,8 @@ plot_loadings(f2, "TCAM F2")
 ggsave("results/microbiome/tcam/routput/loading_pc2.pdf", width = 8, height = 7)
 
 ## Lineplots ##
-f1 <- load %>% select(X, all_of(f1n)) %>% arrange(-.data[[f1n]]) %>% slice(1:3, (last-1):last)
+f1 <- load %>% select(X, all_of(f1n)) %>% arrange(-.data[[f1n]])
+f1 <- f1[c(1:3, (last-1):last),]
 pseudocounts <- mb %>%  select(any_of(f1$X)) %>%
   summarise(across(everything(), ~ min(.x[.x > 0], na.rm = TRUE) / 2))
 mbsel <- mb %>% ungroup(.) %>% select(any_of(f1$X), ID, Genotype, Age_ints, Sex, GenotypePerSex) %>%
@@ -193,7 +196,7 @@ genotype_lineplots <- ggplot(means_ses_long, aes(x = Age_ints, y = mean,
                       facet_wrap(~ microbe, scales = "free", nrow = 1) +
                       theme_Publication() +
                       theme(strip.text = element_text(size = 8))
-ggsave("results/microbiome/tcam/routput/lineplots_genotype_log10.pdf", width = 12, height = 5)
+ggsave("results/microbiome/tcam/routput/lineplots_genotype_log10.pdf", width = 15, height = 5)
 
 # The same but then for sex differences within TDP43
 means_ses <- mbsel %>% filter(Genotype == "TDP43") %>% ## Calculate means and standard deviations
@@ -224,7 +227,7 @@ mbsel_long <- mbsel %>%
                       facet_wrap(~ microbe, scales = "free", nrow = 1) +
                       theme_Publication() +
                       theme(strip.text = element_text(size = 8)))
-ggsave("results/microbiome/tcam/routput/lineplots_tdp43_sex.pdf", width = 12, height = 5)
+ggsave("results/microbiome/tcam/routput/lineplots_tdp43_sex.pdf", width = 15, height = 5)
 
 ### Ggarrange of microbiome plots ###
 (pl <- ggarrange(ggarrange(comp_species, braycurt, nrow = 1, labels = LETTERS[1:2]),
@@ -233,3 +236,75 @@ ggsave("results/microbiome/tcam/routput/lineplots_tdp43_sex.pdf", width = 12, he
                   sexdiff_lineplots,
                   ncol = 1, heights = c(1.3, 0.8, 0.8, 0.8), labels = c("", "", LETTERS[6:7])))
 ggsave("results/microbiome/assembled_microbiome.pdf", width = 16, height = 20)
+
+# 20 microbes with highest loadings
+## Lineplots ##
+f1 <- load %>% select(X, all_of(f1n)) %>% arrange(-.data[[f1n]])
+f1 <- f1[c(1:10, (last-10):last),]
+pseudocounts <- mb %>%  select(any_of(f1$X)) %>%
+  summarise(across(everything(), ~ min(.x[.x > 0], na.rm = TRUE) / 2))
+mbsel <- mb %>% ungroup(.) %>% select(any_of(f1$X), ID, Genotype, Age_ints, Sex, GenotypePerSex) %>%
+  mutate( across(f1$X, ~log10(.x + pseudocounts[[cur_column()]]))
+          ) %>%
+  rename_at(c(f1$X), ~str_remove(.x, " \\(.*\\)$"))
+
+means_ses <- mbsel %>% # Calculate means and standard deviations per Genotype
+  group_by(Genotype, Age_ints) %>%
+  summarise(across(1:21, list(mean = ~mean(.x, na.rm = TRUE), 
+                        se = ~(sd(.x, na.rm = TRUE) / sqrt(n())))))
+means_ses
+
+means_ses_long <- means_ses %>% # to long format for plotting
+  pivot_longer(cols = c(-Genotype, -Age_ints), 
+                        names_to = c("microbe", ".value"), names_sep = "_")
+mbsel_long <- mbsel %>%
+  pivot_longer(cols = c(-ID, -Genotype, -Age_ints, -GenotypePerSex, -Sex), 
+                        names_to = "microbe", values_to = "value")
+
+genotype_lineplots20 <- ggplot(means_ses_long, aes(x = Age_ints, y = mean, 
+                                    group = Genotype, color = Genotype)) +
+                      geom_line() +
+                      geom_point(size = 0.5) +
+                      geom_jitter(data = mbsel_long, aes(x = Age_ints, y = value, color = Genotype),
+                                    width = 0.1, alpha = 0.7) +
+                      scale_color_manual(values = pal_nejm()(8)[c(3,6)]) +
+                      geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
+                      labs(title = "Abundance over time - TDP43 vs WT",
+                          x = "Age (weeks)",
+                          y = "log10(relative abundance)") +
+                      scale_x_continuous(breaks = c(6,8,10,12,14,16)) +
+                      facet_wrap(~ microbe, scales = "free", nrow = 4) +
+                      theme_Publication() +
+                      theme(strip.text = element_text(size = 8))
+ggsave("results/microbiome/tcam/routput/20lineplots_genotype_log10.pdf", width = 18, height = 15)
+
+# The same but then for sex differences within TDP43
+means_ses <- mbsel %>% filter(Genotype == "TDP43") %>% ## Calculate means and standard deviations
+  group_by(Sex, Age_ints) %>%
+  summarise(across(1:21, list(mean = ~mean(.x, na.rm = TRUE), 
+                        se = ~(sd(.x, na.rm = TRUE) / sqrt(n())))))
+means_ses
+
+means_ses_long <- means_ses %>% # to long
+  pivot_longer(cols = c(-Sex, -Age_ints), 
+                        names_to = c("microbe", ".value"), names_sep = "_")
+mbsel_long <- mbsel %>%
+  pivot_longer(cols = c(-ID, -Genotype, -Age_ints, -GenotypePerSex, -Sex), 
+                        names_to = "microbe", values_to = "value")
+
+(sexdiff_lineplots <- ggplot(means_ses_long, aes(x = Age_ints, y = mean, 
+                                    group = Sex, color = Sex)) +
+                      geom_line() +
+                      geom_jitter(data = mbsel_long %>% filter(Genotype == "TDP43"), aes(x = Age_ints, y = value, 
+                                    color = Sex),
+                                    width = 0.1, alpha = 0.7) +
+                      scale_color_nejm() +
+                      geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
+                      labs(title = "Abundance over time for TDP43 - males and females",
+                          x = "Age (weeks)",
+                          y = "log10(relative abundance)") +
+                      scale_x_continuous(breaks = c(6,8,10,12,14,16)) +
+                      facet_wrap(~ microbe, scales = "free", nrow = 4) +
+                      theme_Publication() +
+                      theme(strip.text = element_text(size = 8)))
+ggsave("results/microbiome/tcam/routput/20lineplots_tdp43_sex.pdf", width = 18, height = 15)

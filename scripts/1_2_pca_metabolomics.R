@@ -43,7 +43,7 @@ theme_Publication <- function(base_size=12, base_family="sans") {
 
 #### Opening data files ####
 als <- readRDS("data/metadata.RDS") %>% mutate(Sex = fct_rev(Sex))
-met <- readRDS("data/metabolomics.RDS")
+met <- readRDS("data/metabolome/metabolomics.RDS")
 
 #### PCA plot metabolites ####
 head(met)[1:5,1:5]
@@ -88,4 +88,4 @@ ggsave("results/metabolomics/pca/pca_groups.pdf", width = 5, height = 4.5)
         facet_wrap(~Group, nrow = 1) +
         theme_Publication() +
         theme(legend.title = element_blank()))
-ggsave("results/metabolomics/pca/pca_sex.pdf", width = 5, height = 8)
+ggsave("results/metabolomics/pca/pca_sex.pdf", width = 8, height = 4.5)

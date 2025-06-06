@@ -17,3 +17,15 @@ sample; fastq_1
 samplesheet <- data.frame(sample, fastq_1)
 head(samplesheet)
 write.csv(samplesheet, "data/samplesheet2.csv", row.names = FALSE)
+
+# Sample sheet human cohort
+path <- "/omics/groups/OE0554/internal_temp/barbara/projects/als/data/human_cohort/ena_downloads/"
+ext <- ".fastq.gz"
+df <- rio::import("data/human_cohort/human_cohort_metadata.xlsx")
+head(df)
+sample <- df$ID
+fastq_1 <- str_c(path, df$ID, ext)
+sample; fastq_1
+samplesheet <- data.frame(sample, fastq_1)
+head(samplesheet)
+write.csv(samplesheet, "data/samplesheet_human_cohort.csv", row.names = FALSE)

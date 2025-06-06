@@ -45,8 +45,8 @@ theme_Publication <- function(base_size=14, base_family="sans") {
 }
 
 ## Load data
-mb <- readRDS("data/microbiome.RDS")
-df <- readRDS("data/meta_microbiome.RDS")
+mb <- readRDS("data/microbiome/microbiome.RDS")
+df <- readRDS("data/microbiome/meta_microbiome.RDS")
 head(mb)[1:5,1:5]
 rowSums(mb)
 
@@ -76,6 +76,9 @@ wk12 <- c(braypertimepoint_mice(timepoint = "12 weeks")['Pr(>F)'][[1]][1], "12 w
 wk14 <- c(braypertimepoint_mice(timepoint = "14 weeks")['Pr(>F)'][[1]][1], "14 weeks")
 wk16 <- c(braypertimepoint_mice(timepoint = "16 weeks")['Pr(>F)'][[1]][1], "16 weeks")
 wk18 <- c(braypertimepoint_mice(timepoint = "18 weeks")['Pr(>F)'][[1]][1], "18 weeks")
+wk20 <- c(braypertimepoint_mice(timepoint = "20 weeks")['Pr(>F)'][[1]][1], "20 weeks")
+wk26 <- c(braypertimepoint_mice(timepoint = "26 weeks")['Pr(>F)'][[1]][1], "26 weeks")
+
 res <- rbind(wk6, wk8, wk10, wk12, wk14, wk16, wk18)
 colnames(res) <- c("pvalue", "Age_weeks")
 res <- as.data.frame(res)
@@ -100,15 +103,68 @@ res$pvalue <- as.numeric(res$pvalue)
                     facet_wrap(~ Age_weeks))
 ggsave(braycurt, filename = "results/microbiome/betadiversity/PCoA_BrayCurtis_genotype.pdf", width = 8, height = 8)
 
+#### Genotype difference per sex ####
+braypertimepoint_mice_sexgenotype <- function(timepoint, df = dbray, tab = mb, sex) {
+    set.seed(14)
+    dfsel <- df %>% filter(Age_weeks == timepoint & Sex == sex)
+    bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
+    return(adonis2(bray ~ Genotype, data = dfsel))
+}
+
+wk6 <- c(braypertimepoint_mice_sexgenotype(timepoint = "6 weeks", sex = "Male")['Pr(>F)'][[1]][1], "6 weeks")
+wk8 <- c(braypertimepoint_mice_sexgenotype(timepoint = "8 weeks", sex = "Male")['Pr(>F)'][[1]][1], "8 weeks")
+wk10 <- c(braypertimepoint_mice_sexgenotype(timepoint = "10 weeks", sex = "Male")['Pr(>F)'][[1]][1], "10 weeks")
+wk12 <- c(braypertimepoint_mice_sexgenotype(timepoint = "12 weeks", sex = "Male")['Pr(>F)'][[1]][1], "12 weeks")
+wk14 <- c(braypertimepoint_mice_sexgenotype(timepoint = "14 weeks", sex = "Male")['Pr(>F)'][[1]][1], "14 weeks")
+wk16 <- c(braypertimepoint_mice_sexgenotype(timepoint = "16 weeks", sex = "Male")['Pr(>F)'][[1]][1], "16 weeks")
+wk18 <- c(braypertimepoint_mice_sexgenotype(timepoint = "18 weeks", sex = "Male")['Pr(>F)'][[1]][1], "18 weeks")
+
+res <- rbind(wk6, wk8, wk10, wk12, wk14, wk16, wk18)
+
+wk6 <- c(braypertimepoint_mice_sexgenotype(timepoint = "6 weeks", sex = "Female")['Pr(>F)'][[1]][1], "6 weeks")
+wk8 <- c(braypertimepoint_mice_sexgenotype(timepoint = "8 weeks", sex = "Female")['Pr(>F)'][[1]][1], "8 weeks")
+wk10 <- c(braypertimepoint_mice_sexgenotype(timepoint = "10 weeks", sex = "Female")['Pr(>F)'][[1]][1], "10 weeks")
+wk12 <- c(braypertimepoint_mice_sexgenotype(timepoint = "12 weeks", sex = "Female")['Pr(>F)'][[1]][1], "12 weeks")
+wk14 <- c(braypertimepoint_mice_sexgenotype(timepoint = "14 weeks", sex = "Female")['Pr(>F)'][[1]][1], "14 weeks")
+wk16 <- c(braypertimepoint_mice_sexgenotype(timepoint = "16 weeks", sex = "Female")['Pr(>F)'][[1]][1], "16 weeks")
+wk18 <- c(braypertimepoint_mice_sexgenotype(timepoint = "18 weeks", sex = "Female")['Pr(>F)'][[1]][1], "18 weeks")
+wk20 <- c(braypertimepoint_mice_sexgenotype(timepoint = "20 weeks", sex = "Female")['Pr(>F)'][[1]][1], "20 weeks")
+wk26 <- c(braypertimepoint_mice_sexgenotype(timepoint = "26 weeks", sex = "Female")['Pr(>F)'][[1]][1], "26 weeks")
+
+res <- rbind(wk6, wk8, wk10, wk12, wk14, wk16, wk18, wk20, wk26)
+
+mb2 <- mb
+mb2$ID <- rownames(mb2)
+mbdf <- left_join(mb2, df, by = "ID")
+table(mbdf$GenotypePerSex, mbdf$Age_weeks)
 
 ### Bray-Curtis sex differences ###
-braypertimepoint_sex <- function(timepoint, mouse, df = dfanova, tab = mb) {
+braypertimepoint_sex_all <- function(timepoint, df = dbray, tab = mb) {
+    set.seed(14)
+    dfsel <- df %>% filter(Age_weeks == timepoint)
+    bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
+    return(adonis2(bray ~ Sex, data = dfsel))
+}
+
+wk6 <- c(braypertimepoint_sex_all(timepoint = "6 weeks")['Pr(>F)'][[1]][1], "6 weeks")
+wk8 <- c(braypertimepoint_sex_all(timepoint = "8 weeks")['Pr(>F)'][[1]][1], "8 weeks")
+wk10 <- c(braypertimepoint_sex_all(timepoint = "10 weeks")['Pr(>F)'][[1]][1], "10 weeks")
+wk12 <- c(braypertimepoint_sex_all(timepoint = "12 weeks")['Pr(>F)'][[1]][1], "12 weeks")
+wk14 <- c(braypertimepoint_sex_all(timepoint = "14 weeks")['Pr(>F)'][[1]][1], "14 weeks")
+wk16 <- c(braypertimepoint_sex_all(timepoint = "16 weeks")['Pr(>F)'][[1]][1], "16 weeks")
+wk18 <- c(braypertimepoint_sex_all(timepoint = "18 weeks")['Pr(>F)'][[1]][1], "18 weeks")
+
+res <- rbind(wk6, wk8, wk10, wk12, wk14, wk16, wk18)
+res
+
+braypertimepoint_sex <- function(timepoint, mouse, df = dbray, tab = mb) {
     set.seed(14)
     dfsel <- df %>% filter(Age_weeks == timepoint & Genotype == mouse)
     bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
     print(adonis2(bray ~ Sex, data = dfsel))
 }
 
+braypertimepoint_sex(timepoint = "6 weeks", mouse = "WT")
 braypertimepoint_sex(timepoint = "8 weeks", mouse = "WT")
 braypertimepoint_sex(timepoint = "10 weeks", mouse = "WT")
 braypertimepoint_sex(timepoint = "12 weeks", mouse = "WT")
@@ -128,7 +184,7 @@ dbray <- as.data.frame(dbray)
 dbray$ID <- rownames(dbray)
 dbray <- left_join(dbray, dfsel, by = 'ID') # add metadata / covariates
 
-braypertimepoint_sex <- function(timepoint, mouse, df = dfanova, tab = mb) {
+braypertimepoint_sex <- function(timepoint, mouse, df = dbray, tab = mb) {
     set.seed(14)
     dfsel <- df %>% filter(Age_weeks == timepoint & Genotype == mouse)
     bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
@@ -192,3 +248,15 @@ dbray <- left_join(dbray, dfsel, by = 'ID') # add metadata / covariates
                     facet_wrap(~ Age_weeks, nrow = 1))
 ggsave(braycurt, filename = "results/microbiome/betadiversity/PCoA_BrayCurtis_ctrl_sex.pdf", 
     width = 14, height = 5)
+
+set.seed(14)
+tab <- mb
+dfsel <- df %>% filter(Genotype == "WT" & ID %in% rownames(tab))
+bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
+adonis2(bray ~ Sex, data = dfsel)
+
+set.seed(14)
+tab <- mb
+dfsel <- df %>% filter(Genotype == "TDP43" & ID %in% rownames(tab))
+bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
+adonis2(bray ~ Sex, data = dfsel)

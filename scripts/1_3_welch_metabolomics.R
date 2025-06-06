@@ -6,7 +6,7 @@ library(tidyverse)
 
 ## Data
 als <- readRDS("data/metadata.RDS")
-met <- readRDS("data/metabolomics.RDS")
+met <- readRDS("data/metabolome/metabolomics.RDS")
 met$ID <- rownames(met)
 met <- met %>% # needs to be long for join with metadata
     pivot_longer(., cols = 1:ncol(.)-1, names_to = "metabolite", values_to = "value")

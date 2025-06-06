@@ -57,15 +57,16 @@ plot_correlation <- function(data, microbe, pathway) {
 }
 
 ## Data
-mb <- readRDS("data/imputed_microbiome_data.RDS") %>%
+mb <- readRDS("data/microbiome/imputed_microbiome_data.RDS") %>%
     mutate(across(where(is.numeric), log10))
-df <- readRDS("data/pathways.RDS") %>% filter(rownames(.) %in% mb$ID) # only samples that are in the microbiome data
+df <- readRDS("data/microbiome/pathways.RDS") %>% filter(rownames(.) %in% mb$ID) # only samples that are in the microbiome data
 head(df)
-keypath <- readRDS("data/pathwaykeys.RDS")
-meta <- readRDS("data/meta_microbiome_run1.RDS")
+keypath <- readRDS("data/microbiome/pathwaykeys.RDS")
+meta <- readRDS("data/microbiome/meta_microbiome_run1.RDS")
 load <- read.csv("results/microbiome/tcam/pythonoutput/df_loadings.csv")
 min5 <- ncol(load) - 5
-f1 <- load %>% select(X, F1.19.99.) %>% arrange(-F1.19.99.) %>% slice(c(1:5,130:134))
+f1 <- load %>% select(X, F1.19.99.) %>% arrange(-F1.19.99.) 
+f1 <- f1[c(1:10,126:134),]
 f1
 mbsel <- mb %>% select(all_of(f1$X), ID, Age_weeks, Genotype, Sex)
 bugs <- f1$X
@@ -115,7 +116,9 @@ qval_matrix <- correlations_filtered %>%
 # Get pathway explanations for better labels
 pathway_labels <- correlations_filtered %>%
   select(Pathway, expl) %>%
-  mutate(expl = str_remove(expl, "\\s*\\([^)]*\\)")) %>% 
+  mutate(expl = str_remove(expl, "\\s*\\([^)]*\\)"), 
+        expl = as.factor(expl)) %>% 
+  mutate(expl = gsub("&beta;", "β", expl, fixed=TRUE)) %>%
   distinct() %>%
   arrange(Pathway)
 
@@ -148,7 +151,7 @@ heatmap_bugs_pathways <- Heatmap(
   row_names_side = "left",
   row_dend_side = "right",
   row_labels = pathway_labels$expl[match(rownames(corr_matrix), pathway_labels$Pathway)],
-  row_names_gp = gpar(fontsize = 11),
+  row_names_gp = gpar(fontsize = 10),
   column_names_gp = gpar(fontsize = 12),
   row_names_rot = 0,
   column_names_rot = 45,
@@ -168,9 +171,12 @@ lgd_sig = Legend(pch = c("*","**","***","****"), type = "points",
 heatmap_anno <- draw(heatmap_bugs_pathways, annotation_legend_list = list(lgd_sig))
 
 # Save
-pdf("results/pathways/heatmap_microbes_pathways_complex.pdf", width = 12, height = 10)
+# Replace your PDF save code with this:
+cairo_pdf("results/pathways/heatmap_microbes_pathways_complex.pdf", width = 12, height = 10,
+          family = "Helvetica")
 draw(heatmap_anno)
 dev.off()
+
 
 ### Scatterplots for Akkermansia and Porphyromonadaceae ###
 merged_df <- mbsel %>%
@@ -180,28 +186,28 @@ merged_df <- mbsel %>%
 pathway_expl <- setNames(str_remove(keypath$expl, "\\s*\\([^)]*\\)"), keypath$keys)
 
 # Akkermansia
-akk <- corr_long %>% filter(str_detect(Bug, "Akkermansia"))
-akk_df <- merged_df %>% select(ID, Genotype, Sex, `Akkermansia muciniphila`, all_of(akk$Pathway))
+# akk <- corr_long %>% filter(str_detect(Bug, "Akkermansia"))
+# akk_df <- merged_df %>% select(ID, Genotype, Sex, `Akkermansia muciniphila`, all_of(akk$Pathway))
 
-plots <- list()
-for (pathway in akk$Pathway) {
-  p <- plot_correlation(akk_df, "Akkermansia muciniphila", paste0(pathway))
-  plots[[pathway]] <- p
-}
-ggarrange(plotlist = plots, ncol = 4, nrow = 5)
-ggsave("results/pathways/scatterplots_akkermansia.pdf", width = 20, height = 26)
+# plots <- list()
+# for (pathway in akk$Pathway) {
+#   p <- plot_correlation(akk_df, "Akkermansia muciniphila", paste0(pathway))
+#   plots[[pathway]] <- p
+# }
+# ggarrange(plotlist = plots, ncol = 4, nrow = 5)
+# ggsave("results/pathways/scatterplots_akkermansia.pdf", width = 20, height = 26)
 
-# Porphyromonadaceae
-por <- corr_long %>% filter(str_detect(Bug, "Porphyromonadaceae"))
-por_df <- merged_df %>% select(ID, Genotype, Sex, `Porphyromonadaceae bacterium UBA7141`, all_of(por$Pathway))
+# # Porphyromonadaceae
+# por <- corr_long %>% filter(str_detect(Bug, "Porphyromonadaceae"))
+# por_df <- merged_df %>% select(ID, Genotype, Sex, `Porphyromonadaceae bacterium UBA7141`, all_of(por$Pathway))
 
-plots <- list()
-for (pathway in por$Pathway) {
-  p <- plot_correlation(por_df, "Porphyromonadaceae bacterium UBA7141", paste0(pathway))
-  plots[[pathway]] <- p
-}
-ggarrange(plotlist = plots, ncol = 4, nrow = 2)
-ggsave("results/pathways/scatterplots_porphyromonadaceae.pdf", width = 20, height = 12)
+# plots <- list()
+# for (pathway in por$Pathway) {
+#   p <- plot_correlation(por_df, "Porphyromonadaceae bacterium UBA7141", paste0(pathway))
+#   plots[[pathway]] <- p
+# }
+# ggarrange(plotlist = plots, ncol = 4, nrow = 2)
+# ggsave("results/pathways/scatterplots_porphyromonadaceae.pdf", width = 20, height = 12)
 
 ### Sex differences in significant pathways ###
 pathway_expl_wrapped <- setNames(str_wrap(pathway_expl, width = 35), names(pathway_expl))
@@ -236,17 +242,21 @@ for(a in sig_pathways){
 }
 length(res_box)
 (paths_sexdiff <- ggarrange(plotlist = res_box, ncol = 3, nrow = 3, labels = LETTERS[2:9]))
-ggsave("results/pathways/boxplots/all_pathways_sexdifferences.pdf", width = 12, height = 12)
-ggsave("results/pathways/boxplots/all_pathways_sexdifferences.svg", width = 12, height = 12)
+ggsave("results/pathways/boxplots/all_pathways_sexdifferences.pdf", width = 16, height = 12)
+# ggsave("results/pathways/boxplots/all_pathways_sexdifferences.svg", width = 12, height = 12)
 
 ### Assembled plot ###
 # Convert the heatmap to a grob object with minimal margins
 heatmap_grob <- grid.grabExpr(draw(
       heatmap_bugs_pathways, 
       annotation_legend_list = list(lgd_sig),
-      padding = unit(c(2, 65, 10, 2), "mm"), # top, right, bottom, left padding
+      padding = unit(c(15, 65, 10, 2), "mm"), # bottom, left, top, right padding
   )
 )
-ggarrange(as_ggplot(heatmap_grob), paths_sexdiff, ncol = 2, nrow = 1, widths = c(0.4, 0.35), labels = c("A", ""))
-ggsave("results/pathways/assembled_plot.pdf", width = 20, height = 12)
-ggsave("results/pathways/assembled_plot.svg", width = 20, height = 12)
+ggsave("results/pathways/heatmap_microbes_pathways_complex.pdf", plot = as_ggplot(heatmap_grob),
+       width = 12, height = 10)
+ggarrange(as_ggplot(heatmap_grob), paths_sexdiff, ncol = 1, nrow = 2, heights = c(0.3, 0.35), labels = c("A", ""))
+ggsave("results/pathways/assembled_plot.pdf", width = 12, height = 22)
+ggsave("results/pathways/assembled_plot.pdf", width = 12, height = 22,
+       device = cairo_pdf, family = "Helvetica")
+# ggsave("results/pathways/assembled_plot.svg", width = 20, height = 12)

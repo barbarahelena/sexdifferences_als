@@ -124,7 +124,7 @@ write.csv(df_filtered3, "data/microbiome_filtered_run2.csv")
 
 # Plot a bar plot of available samples
 ## In total per timepoint per group
-sample_counts <- meta2 %>%
+sample_counts <- meta3 %>%
   group_by(GenotypePerSex, Age_ints) %>%
   summarise(count = n()) %>%
   ungroup()
@@ -137,9 +137,9 @@ ggplot(sample_counts, aes(x = Age_ints, y = count, fill = GenotypePerSex)) +
   scale_x_continuous(n.breaks = 8) +
   theme_Publication() +
   theme(legend.title = element_blank())
-ggsave("results/microbiome/sample_counts_barplot.pdf", width = 10, height = 6)
+ggsave("results/microbiome/sample_counts_barplot_run2.pdf", width = 10, height = 6)
 ## Per mouse
-sample_counts <- meta2 %>%
+sample_counts <- meta3 %>%
   group_by(MouseID, Age_ints) %>%
   summarise(count = n(), GenotypePerSex = GenotypePerSex) %>%
   ungroup()
@@ -149,11 +149,11 @@ ggplot(sample_counts, aes(x = Age_ints, y = count, fill = GenotypePerSex)) +
        x = "Age (weeks)",
        y = "Number of samples") +
   ggsci::scale_fill_nejm() +
-  scale_x_continuous(breaks = c(6,8,10,12,14,16,18,20,22,24)) +
+  # scale_x_continuous(breaks = c(6,8,10,12,14,16,18,20,22,24)) +
   facet_wrap(~MouseID) +
   theme_Publication() +
   theme(legend.title = element_blank())
-ggsave("results/microbiome/sample_counts_barplot_id.pdf", width = 15, height = 15)
+ggsave("results/microbiome/sample_counts_barplot_id_run2.pdf", width = 15, height = 15)
 
 # Filter mice that are missing more than 2 timepoints
 ## First make a complete dataset: microbiome and metadata

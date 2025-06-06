@@ -91,7 +91,7 @@ set.seed(1234)
                     point.padding = 0, color = "black", fontface = "bold", force_pull = 0,
                     nudge_x = 0.05, nudge_y = 0.5, segment.color = "grey70",
                     force = 1.5, max.overlaps = 10) +
-    scale_color_manual(values = c(ggsci::pal_lancet()(2)), guide = "none") +
+    scale_color_manual(values = rev(c(ggsci::pal_lancet()(2))), guide = "none") +
     #scale_x_continuous(limits = c(-0.75, 0.75), n.breaks = 6) +
     labs(x = "Log2 fold change (Female - Male)",
          y = "-log10(p-value)",
@@ -139,7 +139,7 @@ set.seed(1234)
                     point.padding = 0, color = "black", fontface = "bold", force_pull = 0,
                     nudge_x = 0.05, nudge_y = 0.5, segment.color = "grey70",
                     force = 1.5, max.overlaps = 10) +
-    scale_color_manual(values = c(ggsci::pal_lancet()(2)), guide = "none") +
+    scale_color_manual(values = rev(c(ggsci::pal_lancet()(2))), guide = "none") +
     #scale_x_continuous(limits = c(-1, 1), breaks = c(-1,-0.75,-0.5,-0.25,0,0.25,0.5,0.75,1.0)) +
     labs(x = "Log2 fold change (Female - Male)",
          y = "-log10(p-value)",
@@ -187,7 +187,7 @@ set.seed(1234)
                     point.padding = 0, color = "black", fontface = "bold", force_pull = 0,
                     nudge_x = 0.05, nudge_y = 0.5, segment.color = "grey70",
                     force = 1.5, max.overlaps = 10) +
-    scale_color_manual(values = c(ggsci::pal_lancet()(2)), guide = "none") +
+    scale_color_manual(values = rev(c(ggsci::pal_lancet()(2))), guide = "none") +
     #scale_x_continuous(limits = c(-1, 1), breaks = c(-1,-0.75,-0.5,-0.25,0,0.25,0.5,0.75,1.0)) +
     labs(x = "Log2 fold change (TDP43 - Control)",
          y = "-log10(p-value)",
