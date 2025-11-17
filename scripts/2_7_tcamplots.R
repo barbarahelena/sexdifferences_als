@@ -308,3 +308,37 @@ mbsel_long <- mbsel %>%
                       theme_Publication() +
                       theme(strip.text = element_text(size = 8)))
 ggsave("results/microbiome/tcam/routput/20lineplots_tdp43_sex.pdf", width = 18, height = 15)
+
+## Lactobacillus rhamnosus
+df <- readRDS("data/microbiome/microbiome_run1.RDS")
+lac <- df %>% select(contains("Lactobacillus"))
+lac <- lac[,apply(lac, 2, mean) > 0.001]
+dim(lac)
+names(lac)
+lac$ID <- rownames(lac)
+lac2 <- left_join(lac, meta, by = "ID")
+head(lac2)
+
+lac2 <- lac2 %>% filter(Genotype == "TDP43") %>% filter(Age_ints =< 18)
+plist <- list()
+for(i in 1:7){
+  lac2$var <- log10(lac2[[i]] + 0.001)
+  print(names(lac2)[i])
+  means <- lac2 %>% group_by(Sex, Age_ints) %>% summarise(mean = mean(var), sd = sd(var), se = sd / sqrt(nrow(.)))
+  pl <- ggplot(means, aes(x = Age_ints, y = mean, group = Sex, color = Sex)) +
+                      geom_line() +
+                      geom_jitter(data = lac2, aes(x = Age_ints, y = var, 
+                                    color = Sex),
+                                    width = 0.1, alpha = 0.7) +
+                      scale_color_nejm() +
+                      geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
+                      labs(title = names(lac2)[i], x = "Age (weeks)",
+                          y = "log10(relative abundance)") +
+                      scale_x_continuous(breaks = c(6,8,10,12,14,16,18)) +
+                      theme_Publication() +
+                      theme(strip.text = element_text(size = 8))
+  plist[[i]] <- pl
+}
+
+ggarrange(plotlist = plist, ncol = 4, nrow = 2, labels = LETTERS[1:length(plist)], common.legend = TRUE)
+ggsave("results/microbiome/lactobacilli.pdf", width = 15, height = 15)

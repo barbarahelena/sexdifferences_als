@@ -58,21 +58,28 @@ for(a in 1:length(pval_sig)){
     print(metname)
     dfmet <- df %>% select(Sex, Intervention, all_of(metname))
     dfmet$met_y <- scale(dfmet[,3])
-    # comp <- list(c("Female Control", "Male Control"), c("Female TDP43", "Male TDP43"))
-    comp <- list(c("Female", "Male"))
+    
+    (sexdiff1 <- t.test(met_y ~ Intervention, data = dfmet %>% filter(Sex == "Female"), var.equal = FALSE))
+    (sexdiff2 <- t.test(met_y ~ Intervention, data = dfmet %>% filter(Sex == "Male"), var.equal = FALSE))
+    p_female <- format.pval(sexdiff1$p.value, digits = 2)
+    p_male <- format.pval(sexdiff2$p.value, digits = 2)
+    sex_diff_text <- paste0("TDP43-WT p = ", p_female, " (female); p = ", p_male, " (male)")
+    sex_diff_text <- str_wrap(sex_diff_text, width = 30)
+  
+    labely <- max(dfpath$path_y, na.rm = TRUE) * 1.05
+  
     (pl <- ggplot(data = dfmet, aes(x = Sex, y = met_y)) + 
-            ggpubr::stat_compare_means(method = "t.test", label = "p.signif", comparisons = comp,
-                                       hide.ns = TRUE, size = 5, #step.increase = 0.1,
-                                       var.equal = FALSE) +
+            ggpubr::stat_compare_means(method = "t.test", label = "p.signif", size = 4, label.x = 1.25,
+                      label.y = labely, var.equal = FALSE) +
             geom_boxplot(aes(fill = Sex), outlier.shape = NA, 
                          width = 0.5, alpha = 0.9) +
             geom_jitter(color = "grey5", height = 0, width = 0.1, alpha = 0.75) +
             scale_fill_manual(guide = "none", values = pal_nejm()(2)) +
-            labs(title=str_wrap(metname, width = 20), y="Metabolite (z-score)", x = "") +
+            labs(title=str_wrap(metname, width = 20), y="Metabolite (z-score)", x = "", caption = sex_diff_text) +
             facet_wrap(~Intervention) +
             scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +
             theme_Publication() +
-            theme(axis.text.x = element_text(angle = 45, hjust = 1)))
+            theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.caption = element_text(size = 8)))
     dftdp <- dfmet %>% filter(Intervention == "TDP43")
     test <- t.test(dftdp[[3]] ~ dftdp$Sex)
     ggsave(str_c("results/metabolomics/boxplots/", metname, ".pdf"), width = 4, height = 5.5, device = "pdf")
@@ -94,3 +101,4 @@ dev.off()
 
 length(res_box)
 (boxplots <- ggarrange(plotlist = res_box, nrow = 3, ncol = 4, labels = LETTERS[6:(6+length(res_box))]))
+

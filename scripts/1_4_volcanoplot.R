@@ -244,7 +244,7 @@ ggsave("results/metabolomics/volcanoplots/volcanoplot_tdp43_fem.pdf", width = 5,
 ggsave("results/metabolomics/volcanoplots/volcanoplot_tdp43_fem.svg", width = 5, height = 5, device = "svg")
 
 ## TDP43 - Control (male)
-res5 <- rio::import("/omics/groups/OE0554/internal_temp/barbara/projects/als/results/metabolomics/ttests/metabolites_welcht_male_diff.csv")
+res5 <- rio::import("results/metabolomics/ttests/metabolites_welcht_male_diff.csv")
 res5 <- calculate_log2_fold_change2(res5)
 res5
 df_sum <- res5 %>% filter(Intervention == "TDP43")

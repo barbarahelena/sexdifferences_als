@@ -79,3 +79,41 @@ dim(df_filtered) # 340 species and 57 samples
 
 saveRDS(df_filtered, "data/human_cohort/microbiome_pruned.RDS")
 saveRDS(df, "data/human_cohort/microbiome.RDS")
+
+# Pathways
+pathw <- rio::import("data/human_cohort/pathway_abundance_cpm_unstratified.txt") %>% 
+                filter(`# Pathway` != "UNMAPPED" & `# Pathway` != "UNINTEGRATED") %>%
+                rename_with(~ str_remove(., "_Abundance"), 1:ncol(.))
+dim(pathw)
+head(pathw)
+
+paths <- pathw$`# Pathway`
+keys <- str_extract(paths, "[A-Z0-9-]+(?=:)")
+expl <- trimws(str_extract(paths, "(?<=:).*"))
+lib <- data.frame(paths, keys, expl)
+pathw <- pathw %>% mutate(`# Pathway` = str_extract(`# Pathway`, "[A-Z0-9-]+(?=:)"))
+rownames(pathw) <- pathw$`# Pathway`
+pathw$`# Pathway` <- NULL
+pathdf <- as.data.frame(t(as.matrix(pathw)))
+
+# Filter
+pathway_filter <- apply(pathdf, 2, function(x) sum(x > 5) >= (0.5 * nrow(pathdf)))
+pw_filtered <- pathdf[, pathway_filter]
+
+# Log transform filtered pathways
+pw <- log10(pw_filtered + 1)
+
+# Print dimensions
+dim(pw)
+head(pw)
+
+saveRDS(pw, "data/human_cohort/human_als_pathways.RDS")
+write.csv(pw, "data/human_cohort/human_als_pathways.csv")
+saveRDS(lib, "data/human_cohort/pathwaykeys.RDS")
+write.csv(lib, "data/human_cohort/pathwaykeys.csv", row.names = FALSE)
+
+lib %>% filter(str_detect(expl, "rhamnose"))
+#                                                              paths            keys                                            expl
+# 1             DTDPRHAMSYN-PWY: dTDP-&beta;-L-rhamnose biosynthesis DTDPRHAMSYN-PWY             dTDP-&beta;-L-rhamnose biosynthesis
+# 2 FUC-RHAMCAT-PWY: superpathway of fucose and rhamnose degradation FUC-RHAMCAT-PWY superpathway of fucose and rhamnose degradation
+# 3                            RHAMCAT-PWY: L-rhamnose degradation I     RHAMCAT-PWY                        L-rhamnose degradation I

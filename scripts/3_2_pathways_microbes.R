@@ -219,19 +219,25 @@ for(a in sig_pathways){
     dfpath <- merged_df %>% select(Sex, Genotype, all_of(a))
     dftdp <- dfpath %>% filter(Genotype == "TDP43")
     dfpath$path_y <- dfpath[[3]]
-    comp <- list(c("Female", "Male"))
+  
+    (sexdiff1 <- wilcox.test(path_y ~ Genotype, data = dfpath %>% filter(Sex == "Female")))
+    (sexdiff2 <- wilcox.test(path_y ~ Genotype, data = dfpath %>% filter(Sex == "Male")))
+    p_female <- format.pval(sexdiff1$p.value, digits = 2)
+    p_male <- format.pval(sexdiff2$p.value, digits = 2)
+    sex_diff_text <- paste0("TDP43-WT p = ", p_female, " (female); p = ", p_male, " (male)")
+  
+    labely <- max(dfpath$path_y, na.rm = TRUE) * 1.05
+  
     (pl <- ggplot(data = dfpath, aes(x = Sex, y = path_y)) + 
-            ggpubr::stat_compare_means(method = "wilcox.test", label = "p.signif", comparisons = comp,
-                                       hide.ns = TRUE, size = 5, #step.increase = 0.1,
-                                       var.equal = FALSE) +
+            ggpubr::stat_compare_means(method = "wilcox.test", label = "p.format", label.y = labely) +
             geom_boxplot(aes(fill = Sex), outlier.shape = NA, 
                          width = 0.5, alpha = 0.9) +
             geom_jitter(color = "grey5", height = 0, width = 0.1, alpha = 0.75) +
             scale_fill_manual(guide = "none", values = ggsci::pal_nejm()(2)) +
-            labs(y="log10(cpm)", x = "", title = paste0(pathway_expl_name)) +
-            scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+            labs(y="log10(cpm)", x = "", title = paste0(pathway_expl_name), caption = sex_diff_text) +
+            scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +
             facet_wrap(~Genotype) +
-            theme(plot.title = element_text(size = 14)) +  # Set fontsize here
+            theme(plot.title = element_text(size = 14), plot.caption = element_text(size = 12)) +
             theme_Publication())
     test <- wilcox.test(dftdp[[3]] ~ dftdp$Sex)
     if(test$p.value < 0.05){
@@ -241,7 +247,7 @@ for(a in sig_pathways){
     }
 }
 length(res_box)
-(paths_sexdiff <- ggarrange(plotlist = res_box, ncol = 3, nrow = 3, labels = LETTERS[2:9]))
+(paths_sexdiff <- ggarrange(plotlist = res_box, ncol = 3, nrow = 3, labels = LETTERS[2:10]))
 ggsave("results/pathways/boxplots/all_pathways_sexdifferences.pdf", width = 16, height = 12)
 # ggsave("results/pathways/boxplots/all_pathways_sexdifferences.svg", width = 12, height = 12)
 

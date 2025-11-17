@@ -168,8 +168,8 @@ ggarrange(ggarrange(pca1, pca2, nrow = 1, labels = LETTERS[1:2], widths = c(1,1.
           nrow = 4, heights = c(1, 1, 1.5, 1.5), labels = c("", "", LETTERS[6], ""))
 ggsave("results/metabolomics/assembled_figure.pdf", width = 14, height = 20)
 
-ggarrange(ggarrange(pca1, pca2, nrow = 1, labels = LETTERS[1:2], widths = c(1,1.5)),
+fig <- ggarrange(ggarrange(pca1, pca2, nrow = 1, labels = LETTERS[1:2], widths = c(1,1.5)),
           ggarrange(plgeno, plwt, pltdp, nrow = 1, labels = LETTERS[3:5]),
-          ggarrange(boxplots, as_ggplot(heatmap_grob), labels = c("", LETTERS[18])),
+          ggarrange(boxplots, as_ggplot(heatmap_grob), labels = c("", LETTERS[18]), nrow = 1),
           nrow = 3, heights = c(0.7, 0.7, 1.8))
-ggsave("results/metabolomics/assembled_figure_2.pdf", width = 18, height = 21)
+ggsave("results/metabolomics/assembled_figure_2.pdf", plot = fig, width = 18, height = 21)

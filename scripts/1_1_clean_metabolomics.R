@@ -7,7 +7,7 @@ library(rio)
 library(forcats)
 
 ## Open metadata
-df <- import("data/metadata.xlsx") %>% select(ID = Sample, Group) %>%
+df <- rio::import("data/human_cohort/metadata_metabolites.xlsx") %>% select(ID = Sample, Group) %>%
     mutate(Intervention = case_when(str_detect(Group, "Disease") ~ "TDP43",
                            str_detect(Group, "Control") ~ "WT",
                            .default = NA),
@@ -23,9 +23,10 @@ df <- import("data/metadata.xlsx") %>% select(ID = Sample, Group) %>%
             Sex = fct_rev(Sex))
 summary(df$Sex); summary(df$Intervention); summary(df$GroupPerSex)
 saveRDS(df, "data/metadata.RDS")
+df <- readRDS("data/human_cohort/metadata.RDS")
 
 # Open metabolomics data
-met <- import("data/metabolomics.xlsx") %>% 
+met <- rio::import("data/human_cohort/metabolomics.xlsx") %>% 
     select(!contains("Std") & !contains("Blank")) %>%
     mutate(compoundId = str_to_lower(compoundId))
 hmdb <- met[,1:2]
@@ -70,3 +71,6 @@ dim(met)
 any(sapply(met, function(x) sum(is.na(x))))
 sapply(met, function(x) sd(x))
 saveRDS(met, "data/metabolomics.RDS")
+
+met <- readRDS("data/human_cohort/metabolomics_human_cohort.RDS")
+df %>%  filter(ID %in% rownames(met))

@@ -2,6 +2,9 @@
 data/
 rawdata/
 results/
+results_shared/
+paper/
+scripts_dkfz/
 r_results/
 .nextflow/
 db/
