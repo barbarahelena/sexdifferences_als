@@ -63,13 +63,13 @@ for(a in 1:length(pval_sig)){
     (sexdiff2 <- t.test(met_y ~ Intervention, data = dfmet %>% filter(Sex == "Male"), var.equal = FALSE))
     p_female <- format.pval(sexdiff1$p.value, digits = 2)
     p_male <- format.pval(sexdiff2$p.value, digits = 2)
-    sex_diff_text <- paste0("TDP43-WT p = ", p_female, " (female); p = ", p_male, " (male)")
-    sex_diff_text <- str_wrap(sex_diff_text, width = 30)
+    sex_diff_text <- paste("TDP43-WT p = ", p_female, " (female);\np = ", p_male, " (male)")
+    # sex_diff_text <- str_wrap(sex_diff_text, width = 20)
   
-    labely <- max(dfpath$path_y, na.rm = TRUE) * 1.05
+    labely <- max(dfmet$met_y, na.rm = TRUE) * 1.05
   
     (pl <- ggplot(data = dfmet, aes(x = Sex, y = met_y)) + 
-            ggpubr::stat_compare_means(method = "t.test", label = "p.signif", size = 4, label.x = 1.25,
+            ggpubr::stat_compare_means(method = "t.test", label = "p.format", size = 2.8, label.x = 1,
                       label.y = labely, var.equal = FALSE) +
             geom_boxplot(aes(fill = Sex), outlier.shape = NA, 
                          width = 0.5, alpha = 0.9) +

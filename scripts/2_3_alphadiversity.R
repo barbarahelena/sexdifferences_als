@@ -43,8 +43,8 @@ theme_Publication <- function(base_size=14, base_family="sans") {
 } 
 
 ## Load data
-mb <- readRDS("data/microbiome.RDS")
-df <- readRDS("data/meta_microbiome.RDS")
+mb <- readRDS("data/microbiome/microbiome.RDS")
+df <- readRDS("data/microbiome/meta_microbiome.RDS")
 head(mb)[1:5,1:5]
 rowSums(mb)
 

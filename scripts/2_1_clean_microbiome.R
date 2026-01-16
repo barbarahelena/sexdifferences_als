@@ -66,14 +66,14 @@ meta <- rio::import("data/sample_info_valeriia.csv") %>%
                                                  .default = FALSE))
 lowcountids <- meta$ID[which(meta$LowCount == TRUE)]
 
-saveRDS(meta, "data/meta_microbiome.RDS")
-write.csv(meta, "data/meta_microbiome.csv")
+saveRDS(meta, "data/microbiome/meta_microbiome.RDS")
+write.csv(meta, "data/microbiome/meta_microbiome.csv")
 meta2 <- meta %>% filter(str_detect(ID, "L")) %>% droplevels(.) # Run 1
-saveRDS(meta2, "data/meta_microbiome_run1.RDS")
-write.csv(meta2, "data/meta_microbiome_run1.csv")
+saveRDS(meta2, "data/microbiome/meta_microbiome_run1.RDS")
+write.csv(meta2, "data/microbiome/meta_microbiome_run1.csv")
 meta3 <- meta %>% filter(str_detect(ID, "S")) %>% droplevels(.) # Run 2
-saveRDS(meta3, "data/meta_microbiome_run2.RDS")
-write.csv(meta3, "data/meta_microbiome_run2.csv")
+saveRDS(meta3, "data/microbiome/meta_microbiome_run2.RDS")
+write.csv(meta3, "data/microbiome/meta_microbiome_run2.csv")
 
 # Tidy bracken table
 tab <- rio::import("data/combined_brackenoutput.txt")
@@ -97,10 +97,10 @@ dim(df2) # 137 samples
 df3 <- df %>% filter(rownames(.) %in% meta3$ID) # Run 2
 dim(df3) # 144 samples
 
-saveRDS(df2, "data/microbiome_run1.RDS")
-write.csv(df2, "data/microbiome_run1.csv")
-saveRDS(df3, "data/microbiome_run2.RDS")
-write.csv(df3, "data/microbiome_run2.csv")
+saveRDS(df2, "data/microbiome/microbiome_run1.RDS")
+write.csv(df2, "data/microbiome/microbiome_run1.csv")
+saveRDS(df3, "data/microbiome/microbiome_run2.RDS")
+write.csv(df3, "data/microbiome/microbiome_run2.csv")
 
 # Pruning of species
 ## Run 1
@@ -117,10 +117,10 @@ species_filter <- apply(df3, 2, function(x) sum(x >= threshold) >= min_samples)
 df_filtered3 <- df3[, species_filter]
 dim(df_filtered3) # 169 species and 144 samples
 
-saveRDS(df_filtered2, "data/microbiome_filtered_run1.RDS")
-write.csv(df_filtered2, "data/microbiome_filtered_run1.csv")
-saveRDS(df_filtered3, "data/microbiome_filtered_run2.RDS")
-write.csv(df_filtered3, "data/microbiome_filtered_run2.csv")
+saveRDS(df_filtered2, "data/microbiome/microbiome_filtered_run1.RDS")
+write.csv(df_filtered2, "data/microbiome/microbiome_filtered_run1.csv")
+saveRDS(df_filtered3, "data/microbiome/microbiome_filtered_run2.RDS")
+write.csv(df_filtered3, "data/microbiome/microbiome_filtered_run2.csv")
 
 # Plot a bar plot of available samples
 ## In total per timepoint per group
@@ -192,5 +192,5 @@ table(dftot_compl2$Age_weeks) # all timepoints have 18 samples
 table(dftot_compl2$GenotypePerSex, dftot_compl2$Age_weeks) # the sample no is constant across timepoints
 
 ## Save the filtered data (no mice with > 2 missing timepoints, ignoring wk 18)
-saveRDS(dftot_compl2, "data/filtered_microbiome_data.RDS")
-write.csv(dftot_compl2, "data/filtered_microbiome_data.csv", row.names = FALSE)
+saveRDS(dftot_compl2, "data/microbiome/filtered_microbiome_data.RDS")
+write.csv(dftot_compl2, "data/microbiome//filtered_microbiome_data.csv", row.names = FALSE)

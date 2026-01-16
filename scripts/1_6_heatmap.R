@@ -120,13 +120,13 @@ dev.off()
                                                                      which = 'row',
                                                                      col = pvalue_col_fun, 
                                                                      pch = pval$sig_tdp43,
-                                                                     pt_size = unit(1, "snpc")*0.7
+                                                                     pt_size = unit(1, "npc")*0.7
                                                                      ),
                                                 pvalue_ctrl = anno_simple(-log10(pval$p.value_ctrl), 
                                                                      which = 'row',
                                                                      col = pvalue_col_fun, 
                                                                      pch = pval$sig_ctrl,
-                                                                     pt_size = unit(1, "snpc")*0.7
+                                                                     pt_size = unit(1, "npc")*0.7
                                                                      ),
                                                 annotation_name_side = "bottom",
                                                 width = unit(0.8, "cm"),
@@ -161,12 +161,12 @@ heatmap_grob <- grid.grabExpr(draw(
       padding = unit(c(2, 10, 10, 2), "mm"), # top, right, bottom, left padding
   )
 )
-ggarrange(ggarrange(pca1, pca2, nrow = 1, labels = LETTERS[1:2], widths = c(1,1.5)),
+fig <- ggarrange(ggarrange(pca1, pca2, nrow = 1, labels = LETTERS[1:2], widths = c(1,1.5)),
           ggarrange(plgeno, plwt, pltdp, nrow = 1, labels = LETTERS[3:5]),
           as_ggplot(heatmap_grob), 
           boxplots,
           nrow = 4, heights = c(1, 1, 1.5, 1.5), labels = c("", "", LETTERS[6], ""))
-ggsave("results/metabolomics/assembled_figure.pdf", width = 14, height = 20)
+ggsave("results/metabolomics/assembled_figure.pdf", plot = fig, width = 14, height = 20)
 
 fig <- ggarrange(ggarrange(pca1, pca2, nrow = 1, labels = LETTERS[1:2], widths = c(1,1.5)),
           ggarrange(plgeno, plwt, pltdp, nrow = 1, labels = LETTERS[3:5]),
