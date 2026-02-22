@@ -1,5 +1,5 @@
 # Descriptives metabolomics
-# Barbara Verhaar, barbara.verhaar@dkfz-heidelberg.de
+# Barbara Verhaar, b.j.verhaar@amsterdamumc.nl
 
 #### Libraries ####
 library(tidyverse)
@@ -89,3 +89,37 @@ ggsave("results/metabolomics/pca/pca_groups.pdf", width = 5, height = 4.5)
         theme_Publication() +
         theme(legend.title = element_blank()))
 ggsave("results/metabolomics/pca/pca_sex.pdf", width = 8, height = 4.5)
+
+#### PERMANOVA (adonis) tests ####
+library(vegan)
+dist_matrix <- vegdist(met, method = "euclidean")
+metadata <- als[match(rownames(met), als$ID), ]
+
+# Test for genotype (Group)
+set.seed(112)
+adonis_group <- adonis2(dist_matrix ~ Intervention, data = metadata, permutations = 999, by = "term")
+print(adonis_group)
+
+# Test for sex
+set.seed(112)
+adonis_sex <- adonis2(dist_matrix ~ Sex, data = metadata, permutations = 999, by = "term")
+print(adonis_sex)
+
+# Test for genotype * sex interaction
+set.seed(112)
+adonis_interaction <- adonis2(dist_matrix ~ Intervention * Sex, data = metadata, permutations = 999, by = "term")
+print(adonis_interaction)
+
+# Test for sex within WT group
+wt_idx <- which(metadata$Intervention == "WT")
+dist_wt <- vegdist(met[wt_idx, ], method = "euclidean")
+set.seed(112)
+adonis_sex_wt <- adonis2(dist_wt ~ Sex, data = metadata[wt_idx, ], permutations = 999, by = "term")
+print(adonis_sex_wt)
+
+# Test for sex within TDP43 group
+tdp_idx <- which(metadata$Intervention == "TDP43")
+dist_tdp <- vegdist(met[tdp_idx, ], method = "euclidean")
+set.seed(112)
+adonis_sex_tdp <- adonis2(dist_tdp ~ Sex, data = metadata[tdp_idx, ], permutations = 999, by = "term")
+print(adonis_sex_tdp)
