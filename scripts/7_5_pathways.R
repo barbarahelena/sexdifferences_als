@@ -9,6 +9,7 @@ library(ggpubr)
 library(rio)
 library(forcats)
 library(ComplexHeatmap)
+library(Cairo)
 
 # Plot theme
 theme_Publication <- function(base_size=12, base_family="sans") {
@@ -18,8 +19,8 @@ theme_Publication <- function(base_size=12, base_family="sans") {
         + theme(plot.title = element_text(face = "bold",
                                           size = rel(1.0), hjust = 0.5),
                 text = element_text(family = 'Helvetica'),
-                panel.background = element_rect(colour = NA),
-                plot.background = element_rect(colour = NA),
+                panel.background = element_rect(colour = NA, fill = NA),
+                plot.background = element_rect(colour = NA, fill = NA),
                 panel.border = element_rect(colour = NA),
                 axis.title = element_text(face = "bold",size = rel(0.9)),
                 axis.title.y = element_text(angle=90,vjust =2),
@@ -54,7 +55,7 @@ wrap_label <- function(label, width = 20) {
 
 ## Data
 mb <- readRDS("data/human_cohort2/microbiome.RDS") %>% mutate(across(where(is.numeric), log10))
-microb <- read.csv("results/humancohort2/microbes_validate.csv")
+microb <- read.csv("results/humancohort2/boxplots_validation/microbes_validate.csv")
 mb_cols <- colnames(mb)
 mb_subset <- mb[, microb$x, drop = FALSE]
 bugs <- names(mb_subset)
@@ -64,8 +65,10 @@ df <- readRDS("data/human_cohort2/human_als_pathways.RDS") %>% filter(rownames(.
 head(df)
 dim(df)
 pathways <- colnames(df)[1:ncol(df)-1]
+length(pathways)
+pathways[which(str_detect(pathways, "RHAM"))]
 pathways2 <- c("DTDPRHAMSYN-PWY", "RHAMCAT-PWY")
-keypath <- readRDS("data/human_cohort/pathwaykeys.RDS")
+keypath <- readRDS("data/human_cohort2/pathwaykeys.RDS")
 meta <- readRDS("data/human_cohort2/metadata.RDS")
 
 # Merge the mb dataframe with the pathways dataframe
@@ -177,17 +180,18 @@ ggsave("results/humancohort2/heatmap_microbes_pathways_complex.pdf", plot = as_g
 
 # Save
 # Replace your PDF save code with this:
-cairo_pdf("results/humancohort2/heatmap_microbes_pathways.pdf", width = 15, height = 45,
-          family = "Helvetica")
-draw(heatmap_anno, padding = unit(c(5,5,5,20), "mm"))
-dev.off()
+# cairo_pdf("results/humancohort2/heatmap_microbes_pathways.pdf", width = 15, height = 45,
+#           family = "Helvetica")
+# draw(heatmap_anno, padding = unit(c(5,5,5,20), "mm"))
+# dev.off()
 
 ### Rhamnose pathways
 # Calculate correlations and identify significant ones
-correlations <- correlate_bugs_pathways(merged_df, bugs, pathways2) %>%
+correlations <- correlate_bugs_pathways(merged_df, bugs, pathways2) %>% #pathwys2 contains rhamnose pathways
     mutate(q.value = p.adjust(P.value, method = "fdr")) %>%
     left_join(keypath, by = c("Pathway" = "keys"))
-sig_pathways <- correlations %>% filter(q.value < 0.05) %>% pull(Pathway) %>% unique()
+sig_pathways <- correlations %>% # filter(P.value < 0.05) %>% 
+    pull(Pathway) %>% unique()
 correlations_filtered <- correlations %>% filter(Pathway %in% sig_pathways)
 
 # Transform correlation data to matrix format - TRANSPOSED
@@ -197,13 +201,13 @@ corr_matrix <- correlations %>%
   column_to_rownames("Pathway")
 
 # Store q-values in a matrix format for cell annotation - TRANSPOSED
-qval_matrix <- correlations_filtered %>%
+qval_matrix <- correlations %>%
   select(Bug, Pathway, q.value) %>%
   pivot_wider(names_from = Bug, values_from = q.value) %>%
   column_to_rownames("Pathway")
 
 # Get pathway explanations for better labels
-pathway_labels <- correlations_filtered %>%
+pathway_labels <- correlations %>%
   select(Pathway, expl) %>%
   mutate(expl = str_remove(expl, "\\s*\\([^)]*\\)"), 
         expl = as.factor(expl)) %>% 
@@ -257,20 +261,11 @@ heatmap_bugs_pathways
 lgd_sig = Legend(pch = c("*","**","***","****"), type = "points", 
                     labels = c("0.05", "0.01", "0.001", "<0.001"),
                     legend_gp = gpar(fontsize = 8))
-heatmap_anno <- draw(heatmap_bugs_pathways, annotation_legend_list = list(lgd_sig))
+# heatmap_anno <- draw(heatmap_bugs_pathways, annotation_legend_list = list(lgd_sig)) # no significant pathways
+heatmap_anno <- draw(heatmap_bugs_pathways)
 
 # Save
-cairo_pdf("results/humancohort/heatmap_microbes_pathways_rhamnose.pdf", width = 12, height = 4,
-          family = "Helvetica")
-draw(heatmap_anno)
-dev.off()
-
-svg("results/humancohort/heatmap_microbes_pathways_rhamnose.svg", width = 12, height = 4,
-          family = "Helvetica")
-draw(heatmap_anno)
-dev.off()
-
-png("results/humancohort/heatmap_microbes_pathways_rhamnose.png", width = "1200", height = "400",
+cairo_pdf("results/humancohort2/heatmap_microbes_pathways_rhamnose.pdf", width = 8, height = 4,
           family = "Helvetica")
 draw(heatmap_anno)
 dev.off()
@@ -308,18 +303,8 @@ for(a in 1:length(sig_pathways)){
     res_box[[a]] <- pl
 }
 length(res_box)
-(paths_sexdiff <- ggarrange(plotlist = res_box, ncol = 3, nrow = 1, labels = LETTERS[2:4]))
-ggsave("results/humancohort/rhamnose_pathways_sexdifferences_pval.pdf", width = 12, height = 4)
-
-cairo_pdf("results/humancohort/rhamnose_pathways_sexdifferences_anno.pdf", width = 12, height = 4)
-(paths_sexdiff <- ggarrange(plotlist = res_box, ncol = 3, nrow = 1))
-dev.off()
-svg(filename = "results/humancohort/rhamnose_pathways_sexdifferences_wilcox_anno.svg", 
-        width = 12, height = 4)
-paths_sexdiff
-dev.off()
-ggsave(paths_sexdiff, filename = "results/pathways/boxplots/all_pathways_sexdifferences_pval.png", 
-        width = 10, height = 4)
+(paths_sexdiff <- ggarrange(plotlist = res_box, ncol = 2, nrow = 1))
+ggsave("results/humancohort2/rhamnose_pathways_sexdifferences_pval.pdf", width = 9, height = 4)
 
 ### Sex differences in significant pathways ###
 merged_df <- df %>% right_join(meta, by = "ID")
@@ -373,3 +358,267 @@ heatmap_grob <- grid.grabExpr(draw(
 ggarrange(as_ggplot(heatmap_grob), paths_sexdiff, ncol = 1, nrow = 2, heights = c(0.2, 0.2), labels = c("A", ""))
 ggsave("results/humancohort/assembled_plot.pdf", width = 13, height = 12,
        device = cairo_pdf, family = "Helvetica")
+
+## Broader approach: testing differences ALL pathways
+df$ID <- rownames(df)
+df_tot <- left_join(meta, df, by = c("ID"))
+names(df_tot)
+
+statres <- c()
+for(i in pathways) {
+    df_tot$pathway_val <- df_tot[,i]
+    pwname <- i
+    test <- wilcox.test(pathway_val ~ Group, data = df_tot)
+    pval_diag <- as.numeric(test$p.value)
+    pval_diag <- as.numeric(format(round(pval_diag, 3), nsmall = 3))
+    sig_diag <- case_when(
+        pval_diag < 0.0001 ~ paste0("****"),
+        pval_diag < 0.001 ~paste0("***"),
+        pval_diag < 0.01 ~paste0("**"),
+        pval_diag <= 0.05 ~paste0("*"),
+        pval_diag > 0.05 ~paste0("")
+    )
+    statres_line <- cbind(pwname, pval_diag, sig_diag)
+    statres <- rbind(statres, statres_line)
+}
+statres <- as.data.frame(statres)
+statres <- statres %>% arrange(pval_diag) %>%
+    mutate(qval_diag = p.adjust(pval_diag, method = "fdr")) |>
+    mutate(sigq_diag = case_when(
+        qval_diag < 0.0001 ~ paste0("****"),
+        qval_diag < 0.001 ~paste0("***"),
+        qval_diag < 0.01 ~paste0("**"),
+        qval_diag <= 0.05 ~paste0("*"),
+        qval_diag > 0.05 ~paste0("")
+    ))
+
+statresfem <- c()
+for(i in pathways) {
+    df_tot2 <- df_tot |> filter(Sex == "Female")
+    df_tot2$pathway_val <- df_tot2[,i]
+    pwname <- i
+    test <- wilcox.test(pathway_val ~ Group, data = df_tot2)
+    pval_fem <- as.numeric(test$p.value)
+    pval_fem <- as.numeric(format(round(pval_fem, 3), nsmall = 3))
+    sig_fem <- case_when(
+        pval_fem < 0.0001 ~ paste0("****"),
+        pval_fem < 0.001 ~paste0("***"),
+        pval_fem < 0.01 ~paste0("**"),
+        pval_fem <= 0.05 ~paste0("*"),
+        pval_fem > 0.05 ~paste0("")
+    )
+    statres_line <- cbind(pwname, pval_fem, sig_fem)
+    statresfem <- rbind(statresfem, statres_line)
+}
+statresfem <- as.data.frame(statresfem)
+statresfem <- statresfem %>% arrange(pval_fem) %>%
+    mutate(qval_fem = p.adjust(pval_fem, method = "fdr")) |>
+    mutate(sigq_fem = case_when(
+        qval_fem < 0.0001 ~ paste0("****"),
+        qval_fem < 0.001 ~paste0("***"),
+        qval_fem < 0.01 ~paste0("**"),
+        qval_fem <= 0.05 ~paste0("*"),
+        qval_fem > 0.05 ~paste0("")
+    ))
+
+statresmale <- c()
+for(i in pathways) {
+    df_tot2 <- df_tot |> filter(Sex == "Male")
+    df_tot2$pathway_val <- df_tot2[,i]
+    pwname <- i
+    test <- wilcox.test(pathway_val ~ Group, data = df_tot2)
+    pval_male <- as.numeric(test$p.value)
+    pval_male <- as.numeric(format(round(pval_male, 3), nsmall = 3))
+    sig_male <- case_when(
+        pval_male < 0.0001 ~ paste0("****"),
+        pval_male < 0.001 ~paste0("***"),
+        pval_male < 0.01 ~paste0("**"),
+        pval_male <= 0.05 ~paste0("*"),
+        pval_male > 0.05 ~paste0("")
+    )
+    statres_line <- cbind(pwname, pval_male, sig_male)
+    statresmale <- rbind(statresmale, statres_line)
+}
+statresmale <- as.data.frame(statresmale)
+statresmale <- statresmale %>% arrange(pval_male) %>%
+    mutate(qval_male = p.adjust(pval_male, method = "fdr")) |>
+    mutate(sigq_male = case_when(
+        qval_male < 0.0001 ~ paste0("****"),
+        qval_male < 0.001 ~paste0("***"),
+        qval_male < 0.01 ~paste0("**"),
+        qval_male <= 0.05 ~paste0("*"),
+        qval_male > 0.05 ~paste0("")
+    ))
+
+statresals <- c()
+for(i in pathways) {
+    df_tot3 <- df_tot |> filter(Group == "ALS")
+    df_tot3$pathway_val <- df_tot3[,i]
+    pwname <- i
+    test <- wilcox.test(pathway_val ~ Sex, data = df_tot3)
+    pval_als <- as.numeric(test$p.value)
+    pval_als <- as.numeric(format(round(pval_als, 3), nsmall = 3))
+    sig_als <- case_when(
+        pval_als < 0.0001 ~ paste0("****"),
+        pval_als < 0.001 ~paste0("***"),
+        pval_als < 0.01 ~paste0("**"),
+        pval_als <= 0.05 ~paste0("*"),
+        pval_als > 0.05 ~paste0("")
+    )
+    statres_line <- cbind(pwname, pval_als, sig_als)
+    statresals <- rbind(statresals, statres_line)
+}
+statresals <- as.data.frame(statresals)
+statresals <- statresals %>% arrange(pval_als) %>%
+    mutate(qval_als = p.adjust(pval_als, method = "fdr")) |>
+    mutate(sigq_als = case_when(
+        qval_als < 0.0001 ~ paste0("****"),
+        qval_als < 0.001 ~paste0("***"),
+        qval_als < 0.01 ~paste0("**"),
+        qval_als <= 0.05 ~paste0("*"),
+        qval_als > 0.05 ~paste0("")
+    ))
+
+statresctrl <- c()
+for(i in pathways) {
+    df_tot3 <- df_tot |> filter(Group == "Control")
+    df_tot3$pathway_val <- df_tot3[,i]
+    pwname <- i
+    test <- wilcox.test(pathway_val ~ Sex, data = df_tot3)
+    pval_ctrl <- as.numeric(test$p.value)
+    pval_ctrl <- as.numeric(format(round(pval_ctrl, 3), nsmall = 3))
+    sig_ctrl <- case_when(
+        pval_ctrl < 0.0001 ~ paste0("****"),
+        pval_ctrl < 0.001 ~paste0("***"),
+        pval_ctrl < 0.01 ~paste0("**"),
+        pval_ctrl <= 0.05 ~paste0("*"),
+        pval_ctrl > 0.05 ~paste0("")
+    )
+    statres_line <- cbind(pwname, pval_ctrl, sig_ctrl)
+    statresctrl <- rbind(statresctrl, statres_line)
+}
+statresctrl <- as.data.frame(statresctrl)
+statresctrl <- statresctrl %>% arrange(pval_ctrl) %>%
+    mutate(qval_ctrl = p.adjust(pval_ctrl, method = "fdr")) |>
+    mutate(sigq_ctrl = case_when(
+        qval_ctrl < 0.0001 ~ paste0("****"),
+        qval_ctrl < 0.001 ~paste0("***"),
+        qval_ctrl < 0.01 ~paste0("**"),
+        qval_ctrl <= 0.05 ~paste0("*"),
+        qval_ctrl > 0.05 ~paste0("")
+    ))
+
+restot <- right_join(statres, statresfem) |> right_join(statresmale) |> right_join(statresals) |> right_join(statresctrl)
+head(restot)
+restot |> arrange(qval_diag)
+restot |> arrange(qval_fem)
+restot |> arrange(qval_male)
+restot |> arrange(qval_als)
+restot |> arrange(qval_ctrl)
+
+res_sigdiag <- restot |> filter(pval_als < 0.05)
+dim(res_sigdiag)
+
+plist <- list()
+for(i in 1:nrow(res_sigdiag)){
+    nm <- res_sigdiag$pwname[i]
+    pw_label <- keypath$expl[keypath$keys == nm]
+    if(length(pw_label) == 0) pw_label <- nm
+    df_tot$pathway_val <- df_tot[[nm]]
+    df_fem <- df_tot |> filter(Sex == "Female")
+    df_fem$pathway_val <- df_fem[[nm]]
+    df_mal <- df_tot |> filter(Sex == "Male")
+    df_mal$pathway_val <- df_mal[[nm]]
+
+    diagdiff1 <- wilcox.test(pathway_val ~ Group, data = df_fem)
+    diagdiff2 <- wilcox.test(pathway_val ~ Group, data = df_mal)
+
+    # Format p-values
+    p_female <- format.pval(diagdiff1$p.value, digits = 2)
+    p_male <- format.pval(diagdiff2$p.value, digits = 2)
+
+    # Create subtitle with sex difference p-values
+    diag_diff_text <- paste0("ALS-Control p = ", p_female, " (women); p = ", p_male, " (men)")
+
+    pl1 <- ggplot(df_tot, aes(x = Sex, y = pathway_val)) +
+        geom_boxplot(aes(fill = Sex), outlier.shape = NA, width = 0.4) +
+        geom_jitter(width = 0.2, alpha = 0.5, height = 0) +
+        scale_fill_manual(values = pal_nejm()(2), guide = "none") +
+        labs(title = str_wrap(pw_label, width = 40),
+             caption = diag_diff_text,
+             y = "log10(cpm)",
+             x = "") +
+        stat_compare_means(method = "wilcox.test", label = "p.format") +
+        theme_Publication() +
+        theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+              plot.caption = element_text(size = 12),
+              legend.position = "none") +
+        facet_wrap(~ Group)
+
+    plist[[i]] <- pl1
+}
+
+n_plots_diag <- nrow(res_sigdiag)
+n_cols_diag <- min(4, n_plots_diag)
+n_rows_diag <- ceiling(n_plots_diag / n_cols_diag)
+
+(plots <- ggarrange(plotlist = plist, common.legend = TRUE, legend = "bottom",
+          labels = LETTERS[1:n_plots_diag],
+          nrow = n_rows_diag, ncol = n_cols_diag))
+ggsave(plots, filename = "results/humancohort2/diffpathways_boxplots.pdf",
+       width = 4 * n_cols_diag, height = 5 * n_rows_diag)
+write.csv2(restot, "results/humancohort2/wilcoxons_pathways.csv")
+
+# Boxplots for pathways with pval_als < 0.05 (sex differences in ALS)
+res_sigals <- statresals |> filter(pval_als < 0.05)
+dim(res_sigals)
+
+plist_als <- list()
+for(i in 1:nrow(res_sigals)){
+    nm <- res_sigals$pwname[i]
+    pw_label <- keypath$expl[keypath$keys == nm]
+    if(length(pw_label) == 0) pw_label <- nm
+    df_tot$pathway_val <- df_tot[[nm]]
+    df_fem <- df_tot |> filter(Sex == "Female")
+    df_fem$pathway_val <- df_fem[[nm]]
+    df_mal <- df_tot |> filter(Sex == "Male")
+    df_mal$pathway_val <- df_mal[[nm]]
+
+    # Test diagnosis difference in females and males
+    diagdiff1 <- wilcox.test(pathway_val ~ Group, data = df_fem)
+    diagdiff2 <- wilcox.test(pathway_val ~ Group, data = df_mal)
+
+    # Format p-values
+    p_female <- format.pval(diagdiff1$p.value, digits = 2)
+    p_male <- format.pval(diagdiff2$p.value, digits = 2)
+
+    # Create subtitle with diagnosis difference p-values
+    diag_diff_text <- paste0("ALS-Control p = ", p_female, " (women); p = ", p_male, " (men)")
+
+    pl_als <- ggplot(df_tot, aes(x = Sex, y = pathway_val)) +
+        geom_boxplot(aes(fill = Sex), outlier.shape = NA, width = 0.4) +
+        geom_jitter(width = 0.2, alpha = 0.5, height = 0) +
+        scale_fill_manual(values = pal_nejm()(2), guide = "none") +
+        labs(title = str_wrap(pw_label, width = 40),
+             caption = diag_diff_text,
+             y = "log10(cpm)",
+             x = "") +
+        stat_compare_means(method = "wilcox.test", label = "p.format") +
+        theme_Publication() +
+        theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+              plot.caption = element_text(size = 12),
+              legend.position = "none") +
+        facet_wrap(~ Group)
+
+    plist_als[[i]] <- pl_als
+}
+
+n_plots <- length(plist_als)
+n_cols <- ceiling(sqrt(n_plots))
+n_rows <- ceiling(n_plots / n_cols)
+
+(plots_als <- ggarrange(plotlist = plist_als, common.legend = TRUE, legend = "bottom",
+          labels = LETTERS[1:n_plots],
+          nrow = n_rows, ncol = n_cols))
+ggsave(plots_als, filename = "results/humancohort2/sexdiff_als_pathways_boxplots.pdf",
+       width = 4 * n_cols, height = 5 * n_rows)
