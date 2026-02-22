@@ -1,0 +1,30 @@
+[workspace]
+authors = ["Barbara Verhaar <barbaraverhaar@MacBook-Pro-van-Barbara.local>"]
+channels = ["conda-forge", "bioconda", "anaconda"]
+name = "calgary_als_cohort"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+r-base = ">=4.5.2,<4.6"
+r-tidyverse = ">=2.0.0,<3"
+r-tableone = ">=0.13.2,<0.14"
+r-ggsci = ">=4.2.0,<5"
+r-ggpubr = ">=0.6.2,<0.7"
+r-circlize = ">=0.4.17,<0.5"
+r-ggthemes = ">=5.2.0,<6"
+bioconductor-complexheatmap = ">=2.26.1,<3"
+r-rio = ">=1.2.4,<2"
+r-forcats = ">=1.0.1,<2"
+r-cairo = ">=1.7_0,<2"
+numpy = ">=2.4.2,<3"
+pandas = ">=3.0.0,<4"
+matplotlib = ">=3.10.8,<4"
+xgboost = ">=3.1.1,<4"
+python = ">=3.14.3,<3.15"
+python-dateutil = "==2.8.2"
+six = "==1.16.0"
+r-vegan = ">=2.7_2,<3"
+r-ape = ">=5.8_1,<6"
