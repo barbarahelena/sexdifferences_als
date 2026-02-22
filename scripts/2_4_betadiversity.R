@@ -1,5 +1,5 @@
 # Beta diversity plots ALS project
-# Barbara Verhaar, barbara.verhaar@dkfz-heidelberg.de
+# Barbara Verhaar, b.j.verhaar@amsterdamumc.nl
 
 ## Libraries
 library(phyloseq)
