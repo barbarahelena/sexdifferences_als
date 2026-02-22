@@ -1,5 +1,5 @@
 # Clean metabolomics data ALS project
-# Barbara Verhaar, barbara.verhaar@dkfz-heidelberg.de
+# Barbara Verhaar, b.j.verhaar@amsterdamumc.nl
 
 ## Load libraries
 library(tidyverse)
