@@ -1,5 +1,5 @@
 # Compositional plots ALS project
-# Barbara Verhaar, barbara.verhaar@dkfz-heidelberg.de
+# Barbara Verhaar, b.j.verhaar@amsterdamumc.nl
 
 ## Load libraries
 library(tidyverse)
@@ -71,10 +71,10 @@ theme_Publication <- function(base_size=14, base_family="sans") {
 } 
 
 # Data
-mb <- readRDS("data/microbiome_run1.RDS")
+mb <- readRDS("data/microbiome/microbiome_run1.RDS")
 head(mb)[1:5,1:5]
 mean(rowSums(mb)); sd(rowSums(mb)) # adds up to 1, with 0 var
-df <- readRDS("data/meta_microbiome_run1.RDS")
+df <- readRDS("data/microbiome/meta_microbiome_run1.RDS")
 
 # Species level summarised per group
 mb2 <- mb %>% # convert to long format per species per sample
