@@ -1,5 +1,5 @@
 # Exploratory plots pathways ALS
-# Barbara Verhaar, barbara.verhaar@dkfz-heidelberg.de
+# Barbara Verhaar, b.j.verhaar@amsterdamumc.nl
 
 ## Load libraries
 library(tidyverse)
@@ -266,3 +266,210 @@ ggsave("results/pathways/assembled_plot.pdf", width = 12, height = 22)
 ggsave("results/pathways/assembled_plot.pdf", width = 12, height = 22,
        device = cairo_pdf, family = "Helvetica")
 # ggsave("results/pathways/assembled_plot.svg", width = 20, height = 12)
+
+### Top 15 strongest correlations heatmap ###
+n_top <- 15
+top_pathways <- correlations_filtered %>%
+  group_by(Pathway) %>%
+  summarise(max_abs_cor = max(abs(Correlation), na.rm = TRUE)) %>%
+  arrange(desc(max_abs_cor)) %>%
+  slice(1:n_top) %>%
+  pull(Pathway)
+
+corr_top <- correlations_filtered %>% filter(Pathway %in% top_pathways)
+
+corr_matrix_top <- corr_top %>%
+  select(Bug, Pathway, Correlation) %>%
+  pivot_wider(names_from = Bug, values_from = Correlation) %>%
+  column_to_rownames("Pathway")
+
+qval_matrix_top <- corr_top %>%
+  select(Bug, Pathway, q.value) %>%
+  pivot_wider(names_from = Bug, values_from = q.value) %>%
+  column_to_rownames("Pathway")
+
+pathway_labels_top <- corr_top %>%
+  select(Pathway, expl) %>%
+  mutate(expl = str_remove(expl, "\\s*\\([^)]*\\)"),
+         expl = as.factor(expl)) %>%
+  mutate(expl = gsub("&beta;", "\u03b2", expl, fixed = TRUE)) %>%
+  distinct() %>%
+  arrange(Pathway)
+
+wrapped_labels_top <- pathway_labels_top$expl[match(rownames(corr_matrix_top), pathway_labels_top$Pathway)]
+
+heatmap_top <- Heatmap(
+  as.matrix(corr_matrix_top),
+  name = "Correlation",
+  col = col_fun,
+  rect_gp = gpar(col = "white", lwd = 2),
+  na_col = "grey95",
+  cell_fun = function(j, i, x, y, width, height, fill) {
+    if (!is.na(corr_matrix_top[i, j])) {
+      if (qval_matrix_top[i, j] < 0.001) {
+        grid.text("***", x, y, gp = gpar(fontsize = 11), vjust = 0.75)
+      } else if (qval_matrix_top[i, j] < 0.01) {
+        grid.text("**", x, y, gp = gpar(fontsize = 11), vjust = 0.75)
+      } else if (qval_matrix_top[i, j] < 0.05) {
+        grid.text("*", x, y, gp = gpar(fontsize = 11), vjust = 0.75)
+      }
+    }
+  },
+  cluster_rows = TRUE,
+  cluster_columns = FALSE,
+  show_row_names = TRUE,
+  show_column_names = TRUE,
+  row_names_side = "left",
+  row_dend_side = "right",
+  row_labels = wrapped_labels_top,
+  row_names_gp = gpar(fontsize = 10),
+  column_names_gp = gpar(fontsize = 12),
+  row_names_rot = 0,
+  column_names_rot = 45,
+  heatmap_legend_param = list(
+    title = "Spearman\nCorrelation",
+    at = c(-1, -0.5, 0, 0.5, 1),
+    labels = c("-1", "-0.5", "0", "0.5", "1")
+  )
+)
+
+heatmap_top_grob <- grid.grabExpr(draw(
+  heatmap_top,
+  annotation_legend_list = list(lgd_sig),
+  padding = unit(c(15, 65, 10, 2), "mm")
+))
+ggsave("results/pathways/heatmap_microbes_pathways_top15.pdf", plot = as_ggplot(heatmap_top_grob),
+       width = 12, height = 9)
+
+### Rhamnose pathways ###
+pathways2 <- c("DTDPRHAMSYN-PWY", "RHAMCAT-PWY")
+
+# Recreate merged_df with bugs + pathways for correlations
+merged_df_rham <- mbsel %>%
+  select(ID, all_of(f1$X), Age_weeks) %>%
+  right_join(df, by = "ID") %>%
+  filter(Age_weeks == "14 weeks") %>%
+  select(-ID, -Age_weeks)
+
+# Calculate correlations for rhamnose pathways
+correlations_rham <- correlate_bugs_pathways(merged_df_rham, bugs, pathways2) %>%
+  mutate(q.value = p.adjust(P.value, method = "fdr")) %>%
+  left_join(keypath, by = c("Pathway" = "keys"))
+sig_pathways_rham <- correlations_rham %>% filter(q.value < 0.05) %>% pull(Pathway) %>% unique()
+correlations_rham_filtered <- correlations_rham %>% filter(Pathway %in% sig_pathways_rham)
+
+if(nrow(correlations_rham_filtered) > 0) {
+  # Transform correlation data to matrix format
+  corr_matrix_rham <- correlations_rham_filtered %>%
+    select(Bug, Pathway, Correlation) %>%
+    pivot_wider(names_from = Bug, values_from = Correlation) %>%
+    column_to_rownames("Pathway")
+
+  qval_matrix_rham <- correlations_rham_filtered %>%
+    select(Bug, Pathway, q.value) %>%
+    pivot_wider(names_from = Bug, values_from = q.value) %>%
+    column_to_rownames("Pathway")
+
+  pathway_labels_rham <- correlations_rham_filtered %>%
+    select(Pathway, expl) %>%
+    mutate(expl = str_remove(expl, "\\s*\\([^)]*\\)"),
+           expl = as.factor(expl)) %>%
+    mutate(expl = gsub("&beta;", "\u03b2", expl, fixed = TRUE)) %>%
+    distinct() %>%
+    arrange(Pathway)
+
+  wrapped_labels_rham <- pathway_labels_rham$expl[match(rownames(corr_matrix_rham), pathway_labels_rham$Pathway)]
+
+  heatmap_rham <- Heatmap(
+    as.matrix(corr_matrix_rham),
+    name = "Correlation",
+    col = col_fun,
+    rect_gp = gpar(col = "white", lwd = 2),
+    na_col = "grey95",
+    cell_fun = function(j, i, x, y, width, height, fill) {
+      if (!is.na(corr_matrix_rham[i, j])) {
+        if (qval_matrix_rham[i, j] < 0.001) {
+          grid.text("***", x, y, gp = gpar(fontsize = 11), vjust = 0.75)
+        } else if (qval_matrix_rham[i, j] < 0.01) {
+          grid.text("**", x, y, gp = gpar(fontsize = 11), vjust = 0.75)
+        } else if (qval_matrix_rham[i, j] < 0.05) {
+          grid.text("*", x, y, gp = gpar(fontsize = 11), vjust = 0.75)
+        }
+      }
+    },
+    cluster_rows = TRUE,
+    cluster_columns = FALSE,
+    show_row_names = TRUE,
+    show_column_names = TRUE,
+    row_names_side = "left",
+    row_dend_side = "right",
+    row_labels = unname(wrapped_labels_rham),
+    row_names_gp = gpar(fontsize = 10),
+    column_names_gp = gpar(fontsize = 12),
+    row_names_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Spearman\nCorrelation",
+      at = c(-1, -0.5, 0, 0.5, 1),
+      labels = c("-1", "-0.5", "0", "0.5", "1")
+    )
+  )
+
+  cairo_pdf("results/pathways/heatmap_microbes_pathways_rhamnose.pdf", width = 12, height = 5,
+            family = "Helvetica")
+  draw(heatmap_rham, annotation_legend_list = list(lgd_sig),
+       padding = unit(c(30, 5, 5, 5), "mm"))
+  dev.off()
+} else {
+  print("No significant rhamnose pathway correlations after FDR correction")
+}
+
+# Rhamnose sex differences boxplots
+merged_df_rham_box <- mbsel %>%
+  select(ID, Sex, Genotype, all_of(f1$X), Age_weeks) %>%
+  right_join(df, by = "ID") %>%
+  filter(Age_weeks == "14 weeks")
+
+rham_plots <- list()
+sex_diff_rhamnose <- data.frame()
+for (i in seq_along(pathways2)) {
+  pw <- pathways2[i]
+  dfpath <- merged_df_rham_box %>% select(Sex, Genotype, all_of(pw))
+  dfpath$path_y <- dfpath[[3]]
+
+  test_female <- wilcox.test(path_y ~ Genotype, data = dfpath %>% filter(Sex == "Female"))
+  test_male <- wilcox.test(path_y ~ Genotype, data = dfpath %>% filter(Sex == "Male"))
+
+  sex_diff_rhamnose <- rbind(sex_diff_rhamnose, data.frame(
+    Pathway = pw,
+    p_female = test_female$p.value,
+    p_male = test_male$p.value
+  ))
+
+  pw_label <- keypath %>% filter(keys == pw) %>% pull(expl)
+  pw_label <- str_remove(pw_label, "\\s*\\([^)]*\\)")
+  if (length(pw_label) == 0 || is.na(pw_label)) pw_label <- pw
+
+  caption_text <- paste0("TDP43-WT p = ", format.pval(test_female$p.value, digits = 2),
+                         " (female); p = ", format.pval(test_male$p.value, digits = 2), " (male)")
+
+  rham_plots[[i]] <- ggplot(data = dfpath, aes(x = Sex, y = path_y)) +
+    stat_compare_means(method = "wilcox.test", label = "p.format", size = 4) +
+    geom_boxplot(aes(fill = Sex), outlier.shape = NA, width = 0.5, alpha = 0.9) +
+    geom_jitter(color = "grey5", height = 0, width = 0.1, alpha = 0.75) +
+    scale_fill_manual(guide = "none", values = ggsci::pal_nejm()(2)) +
+    labs(y = "log10(cpm)", x = "", title = str_wrap(pw_label, width = 35), caption = caption_text) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+    facet_wrap(~Genotype) +
+    theme_Publication() +
+    theme(plot.caption = element_text(size = 10))
+}
+
+sex_diff_rhamnose <- sex_diff_rhamnose %>%
+  left_join(keypath, by = c("Pathway" = "keys"))
+print(sex_diff_rhamnose)
+write.csv(sex_diff_rhamnose, "results/pathways/rhamnose_pathways_sexdiff.csv", row.names = FALSE)
+
+(rham_sexdiff_plot <- ggarrange(plotlist = rham_plots, ncol = 2, nrow = 1, labels = LETTERS[1:length(rham_plots)]))
+ggsave("results/pathways/rhamnose_pathways_sexdifferences.pdf", rham_sexdiff_plot,
+       width = 8, height = 5)
