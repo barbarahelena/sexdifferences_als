@@ -1,5 +1,5 @@
 ## Volcano plot metabolomics sex differences
-## Barbara Verhaar, barbara.verhaar@dkfz-heidelberg.de
+## Barbara Verhaar, b.j.verhaar@amsterdamumc.nl
 
 ## Libraries
 library(tidyverse)
@@ -28,8 +28,8 @@ theme_Publication <- function(base_size=12, base_family="sans") {
         + theme(plot.title = element_text(face = "bold",
                                           size = rel(1.0), hjust = 0.5),
                 text = element_text(family = 'Helvetica'),
-                panel.background = element_rect(colour = NA),
-                plot.background = element_rect(colour = NA),
+                panel.background = element_rect(colour = NA, fill = NA),
+                plot.background = element_rect(colour = NA, fill = NA),
                 panel.border = element_rect(colour = NA),
                 axis.title = element_text(face = "bold",size = rel(1)),
                 axis.title.y = element_text(angle=90,vjust =2),
