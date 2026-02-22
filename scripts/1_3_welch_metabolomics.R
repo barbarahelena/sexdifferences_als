@@ -1,6 +1,5 @@
 ## Welch t tests for metabolomics sex differences
-## Barbara Verhaar, barbara.verhaar@dkfz-heidelberg.de
-
+## Barbara Verhaar, b.j.verhaar@amsterdamumc.nl
 ## Libraries
 library(tidyverse)
 
