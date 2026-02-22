@@ -79,7 +79,7 @@ names_of_interest <- c("Akkermansia muciniphila", "bacterium 1xD42-87", "Phocaei
                         "Parabacteroides distasonis", "Porphyromonadaceae bacterium UBA7141", 
                         "Lachnospiraceae bacterium UBA7143", "Erysipelotrichaceae bacterium",
                         "Bacteroidales bacterium M5", "Parabacteroides goldsteinii", "uncultured Prevotella sp.",
-                        "Clostridiales bacterum VE202-03", "Bacteroides acidifaciens", "Flavonifractor plautii",
+                        "Clostridiales bacterum VE202-03", "Parabacteroides acidifaciens", "Flavonifractor plautii",
                         "Bifidobacterium pseudolongum", "Lactobacillus intestinalis")
 
 mb <- mb[, names(mb) %in% names_of_interest]
@@ -88,7 +88,7 @@ rownames(mb)
 mb$ID <- rownames(mb)
 tot <- left_join(mb, df, by = "ID")
 head(tot)
-microb <- names(tot[1:14,])[which(colSums(tot[1:14]) / nrow(tot) > 0.01)]
+microb <- names(tot[1:14,])[which(colSums(tot[1:7]) / nrow(tot) > 0.01)]
 tot <- tot %>% select(all_of(microb), ID:ALScat)
 head(tot)
 write.csv(microb, "results/humancohort/microbes_validate.csv", row.names = FALSE)
@@ -106,32 +106,6 @@ ggplot(tot %>% filter(Group == "ALS"),
   theme_Publication() +
   scale_color_nejm()
 ggsave("results/humancohort/als_flavonifractor.pdf", width = 7, height = 7)
-
-## 2: Bacteroides acidifaciens
-(pl2 <- ggplot(tot %>% filter(Group == "ALS"), 
-    aes(x = log10(`Bacteroides acidifaciens` + min(tot$`Bacteroides acidifaciens`[which(tot$`Bacteroides acidifaciens` > 0)])), 
-        y = as.numeric(ALS), color = Sex)) +
-  geom_point(alpha = 0.7, size = 2) +
-  stat_cor(method = "spearman") +
-  geom_smooth(method = "lm", se = TRUE) +
-  labs(title = "Bacteroides acidifaciens", x = "log10(Bacteroides acidifaciens)",
-    y = "ALS Score", color = "Sex") +
-  theme_Publication() +
-  scale_color_nejm())
-ggsave("results/humancohort/als_bacteroidesacidi.pdf", width = 7, height = 7)
-
-## 3: Phocaeicola sartorii
-(pl3 <- ggplot(tot %>% filter(Group == "ALS"), 
-    aes(x = log10(`Phocaeicola sartorii` + min(tot$`Phocaeicola sartorii`[which(tot$`Phocaeicola sartorii` > 0)])), 
-    y = as.numeric(ALS), color = Sex)) +
-  geom_point(alpha = 0.7, size = 2) +
-  stat_cor(method = "spearman") +
-  geom_smooth(method = "lm", se = TRUE) +
-  labs(title = "Phocaeicola sartorii", x = "log10(Phocaeicola sartorii)",
-    y = "ALS Score", color = "Sex") +
-  theme_Publication() +
-  scale_color_nejm())
-ggsave("results/humancohort/als_phocaeicola.pdf", width = 7, height = 7)
 
 ## 4: Parabacteroides distasonis
 ggplot(tot %>% filter(Group == "ALS"), 
@@ -158,19 +132,6 @@ ggplot(tot %>% filter(Group == "ALS"),
   theme_Publication() +
   scale_color_nejm()
 ggsave("results/humancohort/als_parabacteroidesgold.pdf", width = 7, height = 7)
-
-## 6: uncultured Prevotella sp.
-ggplot(tot %>% filter(Group == "ALS"), 
-    aes(x = log10(`uncultured Prevotella sp.` + min(tot$`uncultured Prevotella sp.`[which(tot$`uncultured Prevotella sp.` > 0)])), 
-      y = as.numeric(ALS), color = Sex)) +
-  geom_point(alpha = 0.7, size = 2) +
-  stat_cor(method = "spearman") +
-  geom_smooth(method = "lm", se = TRUE) +
-  labs(title = "uncultured Prevotella sp.", x = "log10(uncultured Prevotella sp.)",
-    y = "ALS Score", color = "Sex") +
-  theme_Publication() +
-  scale_color_nejm()
-ggsave("results/humancohort/als_prevotella.pdf", width = 7, height = 7)
 
 ## 7: Akkermansia muciniphila
 ggplot(tot %>% filter(Group == "ALS"), 
@@ -265,8 +226,7 @@ hm <- as_ggplot(heatmap_grob)
 ggsave(hm, filename = "results/humancohort/als_microbe_correlation_heatmap.pdf", 
         width = 6, height = 3)
 
-corr_pls <- ggarrange(pl2, pl3, 
-          nrow = 2, labels = c(LETTERS[9:10]))
+corr_pls <- ggarrange(pl2, nrow = 2, labels = c(LETTERS[9:10])) # akkermansia corr is not there anymore
 
 block2 <- ggarrange(ggarrange(as_ggplot(heatmap_grob), NULL, nrow =2, heights = c(1, 0.8)),
           ggarrange(pl2), 

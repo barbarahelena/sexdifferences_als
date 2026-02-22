@@ -6,7 +6,8 @@ library(tidyverse)
 library(tableone)
 
 # Data
-meta <- readRDS("data/human_cohort/metadata.RDS")
+mb <- readRDS("data/human_cohort/microbiome_pruned.RDS")
+meta <- readRDS("data/human_cohort/metadata.RDS") |> filter(ID %in% rownames(mb))
 
 # Table 1
 table_one <- CreateTableOne(

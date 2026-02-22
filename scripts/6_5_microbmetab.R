@@ -222,7 +222,7 @@ heatmap <- Heatmap(
   rect_gp = gpar(col = "white", lwd = 1),
   cell_fun = function(j, i, x, y, width, height, fill) {
     corr_val <- corr_matrix[i, j]
-    p_val <- pval_matrix[i, j]
+    p_val <- pval_adj_matrix[i, j]
     
     # Add correlation value
     grid.text(sprintf("%.2f", corr_val), x, y, gp = gpar(fontsize = 10))
@@ -366,7 +366,7 @@ hm <- as_ggplot(heatmap_grob)
 ggsave(hm, filename = "results/humancohort/metab_microb_correlations.pdf", 
         width = 8, height = 12)
 
-(corrs <- ggarrange(plot_list[[3]], plot_list[[4]], plot_list[[8]], nrow = 3, labels = c(LETTERS[12:14])))
+(corrs <- ggarrange(plot_list[[3]], plot_list[[4]], plot_list[[5]], nrow = 3, labels = c(LETTERS[12:14])))
 
 block1 <- ggarrange(boxplots, 
                     ggarrange(heatmap_grob, NULL, heights = c(1, 0.6), nrow = 2), 

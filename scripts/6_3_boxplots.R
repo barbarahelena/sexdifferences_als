@@ -70,7 +70,7 @@ rownames(mb)
 mb$ID <- rownames(mb)
 tot <- left_join(mb, df, by = "ID")
 head(tot)
-microb <- names(tot[1:14,])[which(colSums(tot[1:14]) / nrow(tot) > 0.01)]
+microb <- names(tot[1:7,])[which(colSums(tot[1:7]) / nrow(tot) > 0.01)]
 tot <- tot %>% select(all_of(microb), ID:ALScat)
 head(tot)
 
@@ -101,60 +101,6 @@ diag_diff_text <- paste0("ALS-Healthy p = ", p_female, " (women); p = ", p_male,
             legend.position = "none") + 
     facet_wrap(~ Group))
 ggsave("results/humancohort/flavonifractor.pdf", width = 5, height = 5.5)
-
-## 2: Bacteroides acidifaciens
-(diagdiff1 <- wilcox.test(`Bacteroides acidifaciens` ~ Group, data = tot %>% filter(Sex == "Female")))
-(diagdiff2 <- wilcox.test(`Bacteroides acidifaciens` ~ Group, data = tot %>% filter(Sex == "Male")))
-
-# Format p-values
-p_female <- format.pval(diagdiff1$p.value, digits = 2)
-p_male <- format.pval(diagdiff2$p.value, digits = 2)
-
-# Create caption with sex difference p-values
-diag_diff_text <- paste0("ALS-Healthy p = ", p_female, " (women); p = ", p_male, " (men)")
-
-(pl2 <- ggplot(tot, aes(x = Sex, y = log10(`Bacteroides acidifaciens` + 0.5))) +
-    geom_boxplot(aes(fill = Sex), outlier.shape = NA, width = 0.4) +
-    geom_jitter(width = 0.2, alpha = 0.5, height = 0) +
-    scale_fill_manual(values = pal_nejm()(8)[c(1:2)], guide = "none") +
-    labs(title = "Bacteroides acidifaciens", 
-         caption = diag_diff_text,
-         y = "Bacteroides acidifaciens", 
-         x = "") +
-    stat_compare_means(method = "wilcox.test", label = "p.format") +
-    theme_Publication() +
-    theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
-            plot.caption = element_text(size = 12),
-            legend.position = "none") + 
-    facet_wrap(~ Group))
-ggsave("results/humancohort/bacteroidesacidi.pdf", width = 5, height = 5.5)
-
-## 3: Phocaeicola sartorii
-(diagdiff1 <- wilcox.test(`Phocaeicola sartorii` ~ Group, data = tot %>% filter(Sex == "Female")))
-(diagdiff2 <- wilcox.test(`Phocaeicola sartorii` ~ Group, data = tot %>% filter(Sex == "Male")))
-
-# Format p-values
-p_female <- format.pval(diagdiff1$p.value, digits = 2)
-p_male <- format.pval(diagdiff2$p.value, digits = 2)
-
-# Create caption with sex difference p-values
-diag_diff_text <- paste0("ALS-Healthy p = ", p_female, " (women); p = ", p_male, " (men)")
-
-(pl3 <- ggplot(tot, aes(x = Sex, y = log10(`Phocaeicola sartorii` + 0.2))) +
-    geom_boxplot(aes(fill = Sex), outlier.shape = NA, width = 0.4) +
-    geom_jitter(width = 0.2, alpha = 0.5, height = 0) +
-    scale_fill_manual(values = pal_nejm()(8)[c(1:2)], guide = "none") +
-    labs(title = "Phocaeicola sartorii", 
-         caption = diag_diff_text,
-         y = "Phocaeicola sartorii", 
-         x = "") +
-    stat_compare_means(method = "wilcox.test", label = "p.format") +
-    theme_Publication() +
-    theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
-            plot.caption = element_text(size = 12),
-            legend.position = "none") + 
-    facet_wrap(~ Group))
-ggsave("results/humancohort/phocaeicola.pdf", width = 5, height = 5.5)
 
 
 ## 4: Parabacteroides distasonis
@@ -211,33 +157,6 @@ diag_diff_text <- paste0("ALS-Healthy p = ", p_female, " (women); p = ", p_male,
     facet_wrap(~ Group))
 ggsave("results/humancohort/parabacteroidesgold.pdf", width = 5, height = 5.5)
 
-## 6: uncultured Prevotella sp.
-(diagdiff1 <- wilcox.test(`uncultured Prevotella sp.` ~ Group, data = tot %>% filter(Sex == "Female")))
-(diagdiff2 <- wilcox.test(`uncultured Prevotella sp.` ~ Group, data = tot %>% filter(Sex == "Male")))
-
-# Format p-values
-p_female <- format.pval(diagdiff1$p.value, digits = 2)
-p_male <- format.pval(diagdiff2$p.value, digits = 2)
-
-# Create caption with sex difference p-values
-diag_diff_text <- paste0("ALS-Healthy p = ", p_female, " (women); p = ", p_male, " (men)")
-
-(pl6 <- ggplot(tot, aes(x = Sex, y = log10(`uncultured Prevotella sp.` + 0.1))) +
-    geom_boxplot(aes(fill = Sex), outlier.shape = NA, width = 0.4) +
-    geom_jitter(width = 0.2, alpha = 0.5, height = 0) +
-    scale_fill_manual(values = pal_nejm()(8)[c(1:2)], guide = "none") +
-    labs(title = "uncultured Prevotella sp.", 
-         caption = diag_diff_text,
-         y = "uncultured Prevotella sp.", 
-         x = "") +
-    stat_compare_means(method = "wilcox.test", label = "p.format") +
-    theme_Publication() +
-    theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
-            plot.caption = element_text(size = 12),
-            legend.position = "none") + 
-    facet_wrap(~ Group))
-ggsave("results/humancohort/prevotella.pdf", width = 5, height = 5.5)
-
 ## 7: Akkermansia muciniphila
 (diagdiff1 <- wilcox.test(`Akkermansia muciniphila` ~ Group, data = tot %>% filter(Sex == "Female")))
 (diagdiff2 <- wilcox.test(`Akkermansia muciniphila` ~ Group, data = tot %>% filter(Sex == "Male")))
@@ -270,7 +189,7 @@ ggsave("results/humancohort/akkermansia.pdf", width = 5, height = 5.5)
 #           common.legend = TRUE, legend = "bottom"))
 # ggsave("results/humancohort/boxplots_microbes.pdf", width = 10, height = 18)
 
-(boxplots <- ggarrange(pl7, pl2, pl1, pl4, pl5, pl6, pl3, labels = LETTERS[1:7],
-          ncol = 4, nrow = 2,
+(boxplots <- ggarrange(pl7, pl1, pl4, pl5, labels = LETTERS[1:4],
+          ncol = 4, nrow = 1,
           common.legend = TRUE, legend = "bottom"))
-ggsave("results/humancohort/boxplots_microbes.pdf", width = 18, height = 10)
+ggsave("results/humancohort/boxplots_microbes.pdf", width = 18, height = 5)
