@@ -1,5 +1,5 @@
 # TCAM microbiota data
-# Barbara Verhaar, barbara.verhaar@dkfz-heidelberg.de
+# Barbara Verhaar, b.j.verhaar@amsterdamumc.nl
 
 from mprod.dimensionality_reduction import TCAM
 from mprod import table2tensor
