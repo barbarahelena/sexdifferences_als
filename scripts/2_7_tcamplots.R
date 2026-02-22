@@ -1,5 +1,5 @@
 # TCAM plots ALS project
-# Barbara Verhaar, barbara.verhaar@dkfz-heidelberg.de
+# Barbara Verhaar, b.j.verhaar@amsterdamumc.nl
 
 ## Libraries
 library(tidyverse)
@@ -16,8 +16,8 @@ theme_Publication <- function(base_size=14, base_family="sans") {
         + theme(plot.title = element_text(face = "bold",
                                           size = rel(1.0), hjust = 0.5),
                 text = element_text(),
-                panel.background = element_rect(colour = NA),
-                plot.background = element_rect(colour = NA),
+                panel.background = element_rect(colour = NA, fill = NA),
+                plot.background = element_rect(colour = NA, fill = NA),
                 panel.border = element_rect(colour = NA),
                 axis.title = element_text(face = "bold",size = rel(0.8)),
                 axis.title.y = element_text(angle=90, vjust =2),
@@ -39,7 +39,6 @@ theme_Publication <- function(base_size=14, base_family="sans") {
                 strip.text = element_text(face="bold"),
                 plot.caption = element_text(size = rel(0.5), face = "italic")
         ))
-    
 } 
 
 
@@ -73,17 +72,21 @@ f2n <- names(tcam)[8]
 set.seed(1234)
 # 1. PERMANOVA for overall genotype effect
 tcam_dist <- tcam %>% select(all_of(c(f1n, f2n))) %>% dist(method = "euclidean")
-(permanova_genotype <- adonis2(tcam_dist ~ Genotype, data = tcam, permutations = 999, method = "euclidean"))
+(permanova_genotype <- adonis2(tcam_dist ~ Genotype, data = tcam, permutations = 999, method = "euclidean", by = "term"))
 
 # 2. PERMANOVA for genotype in females
 tcam_fem <- tcam %>% filter(Sex == "Female")
 tcam_fem_dist <- tcam_fem %>% select(all_of(c(f1n, f2n))) %>% dist(method = "euclidean")
-(permanova_fem <- adonis2(tcam_fem_dist ~ Genotype, data = tcam_fem, permutations = 999, method = "euclidean"))
+(permanova_fem <- adonis2(tcam_fem_dist ~ Genotype, data = tcam_fem, permutations = 999, method = "euclidean", by = "term"))
 
 # 3. PERMANOVA for genotype in males
 tcam_male <- tcam %>% filter(Sex == "Male")
 tcam_male_dist <- tcam_male %>% select(all_of(c(f1n, f2n))) %>% dist(method = "euclidean")
-(permanova_male <- adonis2(tcam_male_dist ~ Genotype, data = tcam_male, permutations = 999, method = "euclidean"))
+(permanova_male <- adonis2(tcam_male_dist ~ Genotype, data = tcam_male, permutations = 999, method = "euclidean", by = "term"))
+
+# 3. PERMANOVA for genotype in males
+tcam_dist <- tcam %>% select(all_of(c(f1n, f2n))) %>% dist(method = "euclidean")
+(permanova_male <- adonis2(tcam_dist ~ Genotype * Sex, data = tcam, permutations = 999, method = "euclidean", by = "term"))
 
 annotation_text <- str_c("all: p = ", permanova_genotype$`Pr(>F)`[1], "\n",
                     "females: p = ", permanova_fem$`Pr(>F)`[1], "\n",
@@ -220,7 +223,7 @@ mbsel_long <- mbsel %>%
                                     width = 0.1, alpha = 0.7) +
                       scale_color_nejm() +
                       geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
-                      labs(title = "Abundance over time for TDP43 - males and females",
+                      labs(title = "Abundance over time for TDP43 - males vs females",
                           x = "Age (weeks)",
                           y = "log10(relative abundance)") +
                       scale_x_continuous(breaks = c(6,8,10,12,14,16)) +
@@ -228,6 +231,37 @@ mbsel_long <- mbsel %>%
                       theme_Publication() +
                       theme(strip.text = element_text(size = 8)))
 ggsave("results/microbiome/tcam/routput/lineplots_tdp43_sex.pdf", width = 15, height = 5)
+
+# The same but then for sex differences within TDP43
+means_ses <- mbsel %>% filter(Genotype == "WT") %>% ## Calculate means and standard deviations
+  group_by(Sex, Age_ints) %>%
+  summarise(across(1:5, list(mean = ~mean(.x, na.rm = TRUE), 
+                        se = ~(sd(.x, na.rm = TRUE) / sqrt(n())))))
+means_ses
+
+means_ses_long <- means_ses %>% # to long
+  pivot_longer(cols = c(-Sex, -Age_ints), 
+                        names_to = c("microbe", ".value"), names_sep = "_")
+mbsel_long <- mbsel %>%
+  pivot_longer(cols = c(-ID, -Genotype, -Age_ints, -GenotypePerSex, -Sex), 
+                        names_to = "microbe", values_to = "value")
+
+(sexdiff_lineplots <- ggplot(means_ses_long, aes(x = Age_ints, y = mean, 
+                                    group = Sex, color = Sex)) +
+                      geom_line() +
+                      geom_jitter(data = mbsel_long %>% filter(Genotype == "WT"), aes(x = Age_ints, y = value, 
+                                    color = Sex),
+                                    width = 0.1, alpha = 0.7) +
+                      scale_color_nejm() +
+                      geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
+                      labs(title = "Abundance over time for WT - males vs females",
+                          x = "Age (weeks)",
+                          y = "log10(relative abundance)") +
+                      scale_x_continuous(breaks = c(6,8,10,12,14,16)) +
+                      facet_wrap(~ microbe, scales = "free", nrow = 1) +
+                      theme_Publication() +
+                      theme(strip.text = element_text(size = 8)))
+ggsave("results/microbiome/tcam/routput/lineplots_wt_sex.pdf", width = 15, height = 5)
 
 ### Ggarrange of microbiome plots ###
 (pl <- ggarrange(ggarrange(comp_species, braycurt, nrow = 1, labels = LETTERS[1:2]),
@@ -240,7 +274,7 @@ ggsave("results/microbiome/assembled_microbiome.pdf", width = 16, height = 20)
 # 20 microbes with highest loadings
 ## Lineplots ##
 f1 <- load %>% select(X, all_of(f1n)) %>% arrange(-.data[[f1n]])
-f1 <- f1[c(1:10, (last-10):last),]
+f1 <- f1[c(1:10, (last-9):last),]
 pseudocounts <- mb %>%  select(any_of(f1$X)) %>%
   summarise(across(everything(), ~ min(.x[.x > 0], na.rm = TRUE) / 2))
 mbsel <- mb %>% ungroup(.) %>% select(any_of(f1$X), ID, Genotype, Age_ints, Sex, GenotypePerSex) %>%
@@ -250,7 +284,7 @@ mbsel <- mb %>% ungroup(.) %>% select(any_of(f1$X), ID, Genotype, Age_ints, Sex,
 
 means_ses <- mbsel %>% # Calculate means and standard deviations per Genotype
   group_by(Genotype, Age_ints) %>%
-  summarise(across(1:21, list(mean = ~mean(.x, na.rm = TRUE), 
+  summarise(across(1:20, list(mean = ~mean(.x, na.rm = TRUE), 
                         se = ~(sd(.x, na.rm = TRUE) / sqrt(n())))))
 means_ses
 
@@ -281,7 +315,7 @@ ggsave("results/microbiome/tcam/routput/20lineplots_genotype_log10.pdf", width =
 # The same but then for sex differences within TDP43
 means_ses <- mbsel %>% filter(Genotype == "TDP43") %>% ## Calculate means and standard deviations
   group_by(Sex, Age_ints) %>%
-  summarise(across(1:21, list(mean = ~mean(.x, na.rm = TRUE), 
+  summarise(across(1:20, list(mean = ~mean(.x, na.rm = TRUE), 
                         se = ~(sd(.x, na.rm = TRUE) / sqrt(n())))))
 means_ses
 
@@ -300,7 +334,7 @@ mbsel_long <- mbsel %>%
                                     width = 0.1, alpha = 0.7) +
                       scale_color_nejm() +
                       geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
-                      labs(title = "Abundance over time for TDP43 - males and females",
+                      labs(title = "Abundance over time for TDP43 - males vs females",
                           x = "Age (weeks)",
                           y = "log10(relative abundance)") +
                       scale_x_continuous(breaks = c(6,8,10,12,14,16)) +
@@ -308,6 +342,86 @@ mbsel_long <- mbsel %>%
                       theme_Publication() +
                       theme(strip.text = element_text(size = 8)))
 ggsave("results/microbiome/tcam/routput/20lineplots_tdp43_sex.pdf", width = 18, height = 15)
+
+# The same but then for sex differences within WT
+means_ses <- mbsel %>% filter(Genotype == "WT") %>% ## Calculate means and standard deviations
+  group_by(Sex, Age_ints) %>%
+  summarise(across(1:20, list(mean = ~mean(.x, na.rm = TRUE), 
+                        se = ~(sd(.x, na.rm = TRUE) / sqrt(n())))))
+means_ses
+
+means_ses_long <- means_ses %>% # to long
+  pivot_longer(cols = c(-Sex, -Age_ints), 
+                        names_to = c("microbe", ".value"), names_sep = "_")
+mbsel_long <- mbsel %>%
+  pivot_longer(cols = c(-ID, -Genotype, -Age_ints, -GenotypePerSex, -Sex), 
+                        names_to = "microbe", values_to = "value")
+
+(sexdiff_lineplots <- ggplot(means_ses_long, aes(x = Age_ints, y = mean, 
+                                    group = Sex, color = Sex)) +
+                      geom_line() +
+                      geom_jitter(data = mbsel_long %>% filter(Genotype == "WT"), aes(x = Age_ints, y = value, 
+                                    color = Sex),
+                                    width = 0.1, alpha = 0.7) +
+                      scale_color_nejm() +
+                      geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
+                      labs(title = "Abundance over time for WT - males vs females",
+                          x = "Age (weeks)",
+                          y = "log10(relative abundance)") +
+                      scale_x_continuous(breaks = c(6,8,10,12,14,16)) +
+                      facet_wrap(~ microbe, scales = "free", nrow = 4) +
+                      theme_Publication() +
+                      theme(strip.text = element_text(size = 8)))
+ggsave("results/microbiome/tcam/routput/20lineplots_wt_sex.pdf", width = 18, height = 15)
+
+## Boxplots top 10 F1 microbes ##
+f1 <- load %>% select(X, all_of(f1n)) %>% arrange(-.data[[f1n]])
+f1_top10 <- f1[c(1:10, (last-9):last),]
+pseudocounts_box <- mb %>% select(any_of(f1_top10$X)) %>%
+  summarise(across(everything(), ~ min(.x[.x > 0], na.rm = TRUE) / 2))
+mbsel_box <- mb %>% ungroup(.) %>% select(any_of(f1_top10$X), ID, Genotype, Age_ints, Sex, GenotypePerSex) %>%
+  filter(Age_ints == 12) |> 
+  mutate(across(f1_top10$X, ~log10(.x + pseudocounts_box[[cur_column()]]))) %>%
+  rename_at(c(f1_top10$X), ~str_remove(.x, " \\(.*\\)$"))
+
+microbe_names <- str_remove(f1_top10$X, " \\(.*\\)$")
+
+res_box <- list()
+for(i in seq_along(microbe_names)) {
+  mic <- microbe_names[i]
+  print(mic)
+  dfmic <- mbsel_box %>% select(Sex, Genotype, all_of(mic)) %>%
+    rename(value = all_of(mic))
+
+  # Genotype difference per sex
+  sexdiff_f <- wilcox.test(value ~ Genotype, data = dfmic %>% filter(Sex == "Female"), var.equal = FALSE)
+  sexdiff_m <- wilcox.test(value ~ Genotype, data = dfmic %>% filter(Sex == "Male"), var.equal = FALSE)
+  p_female <- format.pval(sexdiff_f$p.value, digits = 2)
+  p_male <- format.pval(sexdiff_m$p.value, digits = 2)
+  geno_diff_text <- paste0("Genotype: p = ", p_female, " (F); p = ", p_male, " (M)")
+
+  labely <- max(dfmic$value, na.rm = TRUE) * 1.05
+
+  pl <- ggplot(data = dfmic, aes(x = Sex, y = value)) +
+    stat_compare_means(method = "wilcox.test", label = "p.format", size = 2.8, label.x = 1,
+                       label.y = labely) +
+    geom_boxplot(aes(fill = Sex), outlier.shape = NA, width = 0.5, alpha = 0.9) +
+    geom_jitter(color = "grey5", height = 0, width = 0.1, alpha = 0.75) +
+    scale_fill_manual(guide = "none", values = pal_nejm()(2)) +
+    labs(title = str_wrap(mic, width = 25), y = "log10(relative abundance)", x = "",
+         caption = geno_diff_text) +
+    facet_wrap(~Genotype) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +
+    theme_Publication() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          plot.caption = element_text(size = 7))
+
+  res_box[[i]] <- pl
+}
+
+pdf("results/microbiome/tcam/routput/boxplots_top10_f1.pdf", width = 20, height = 25)
+gridExtra::grid.arrange(grobs = res_box, ncol = 5)
+dev.off()
 
 ## Lactobacillus rhamnosus
 df <- readRDS("data/microbiome/microbiome_run1.RDS")
@@ -319,7 +433,7 @@ lac$ID <- rownames(lac)
 lac2 <- left_join(lac, meta, by = "ID")
 head(lac2)
 
-lac2 <- lac2 %>% filter(Genotype == "TDP43") %>% filter(Age_ints =< 18)
+lac2 <- lac2 %>% filter(Genotype == "TDP43") %>% filter(Age_ints <= 18)
 plist <- list()
 for(i in 1:7){
   lac2$var <- log10(lac2[[i]] + 0.001)
