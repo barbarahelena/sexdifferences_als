@@ -16,20 +16,23 @@ In this project, we investigated the role of the gut microbiota and metabolome i
    - Analyzes microbiome composition and generates compositional plots for cohort 2.
    - Outputs: Bar plots of microbiome composition.
 4. **`1_4_diversity.R`**
-   - Calculates alpha and beta diversity metrics and tests group differences.
-   - Outputs: Diversity plots.
-5. **`1_4_pathways.R`**
-   - Analyzes microbial pathways in human hosts.
-   - Outputs: Pathway plots.
-6. **`1_5_microbes.R`**
-   - Runs linear mixed models (LMMs) for microbial species differences.
-   - Outputs: LMM results and plots.
-7. **`1_6_pathwaycorr.R`**
-   - Correlates microbial pathways with clinical variables in the Calgary cohort.
-   - Outputs: Pathway correlation plots.
-8. **`1_7_cayman.R`**
-   - Analyzes Cayman metabolomics data for human cohort 2.
-   - Outputs: Metabolomics plots and statistics.
+   - Calculates beta diversity (Bray-Curtis PCoA) and tests group differences by sex in ALS and control groups.
+   - Outputs: PCoA plots (`pl1`, `pl2`).
+5. **`1_5_diffabundance.R`**
+   - Runs LinDA (Linear models for Differential Abundance) to identify microbial species differing by sex in ALS and control groups.
+   - Outputs: Volcano plots (`p_li_als_sex`, `p_li_ctrl_sex`).
+6. **`1_6_pathwaycorr.R`**
+   - Correlates microbial pathways with clinical variables in the Calgary cohort and generates a heatmap.
+   - Outputs: `heatmap_top`, `lgd_sig_path`.
+7. **`1_7_cazymes_stats.R`**
+   - Exploratory statistical analysis of carbohydrate-active enzymes (CAZymes) in the Calgary cohort.
+   - Outputs: CAZyme statistics and exploratory plots.
+8. **`1_8_cazymes.R`**
+   - Analyzes CAZyme profiles in the Calgary cohort; generates PCoA plots and boxplots for key CAZyme families (GH78, GH106).
+   - Outputs: `pl_caz1`, `pl_caz2`, `plist`, `families_present`.
+9. **`1_9_assembleplot.R`**
+   - Assembles all human cohort 2 analysis outputs into a single multi-panel figure.
+   - Outputs: `results/humancohort2/assembled_figure.pdf`.
 
 #### Chapter 2: Mouse Microbiome Analysis
 1. **`2_1_clean_microbiome.R`**
@@ -71,19 +74,16 @@ In this project, we investigated the role of the gut microbiota and metabolome i
    - Outputs: `data/metabolomics.RDS`, `data/metabolomics_hmdb.csv`.
 2. **`4_2_pca_metabolomics.R`**
    - Performs PCA on metabolomics data.
-   - Outputs: PCA plots of metabolite profiles.
-3. **`4_3_welch_metabolomics.R`**
-   - Performs Welch's t-tests for metabolite differences by genotype and sex.
-   - Outputs: Statistical results tables.
-4. **`4_4_volcanoplot.R`**
-   - Generates volcano plots for metabolomics comparisons.
-   - Outputs: Volcano plots for genotype and sex differences.
-5. **`4_5_boxplots.R`**
-   - Creates boxplots for metabolites showing significant differences.
+   - Outputs: PCA plots of metabolite profiles by sex and genotype.
+3. **`4_3_heatmap.R`**
+   - Generates a heatmap of metabolites with a significant Sex × Genotype interaction (two-way ANOVA).
+   - Outputs: Metabolomics heatmaps.
+4. **`4_4_boxplots.R`**
+   - Creates boxplots for metabolites showing significant Sex × Genotype interactions.
    - Outputs: Boxplots for selected metabolites.
-6. **`4_6_heatmap.R`**
-   - Generates heatmaps for metabolomics data.
-   - Outputs: Heatmaps of metabolite concentrations.
+5. **`4_5_assembleplot.R`**
+   - Assembles a cross-dataset figure combining mouse pathway/CAZyme and human metabolomics results.
+   - Outputs: Combined multi-panel figure.
 
 #### Chapter 5: ENA Submission
 1. **`5_1_ena_checksum.sh`**
@@ -97,36 +97,34 @@ In this project, we investigated the role of the gut microbiota and metabolome i
 - **`check_metagenomic_ids.sh`** — Checks and lists unique sample IDs in the metagenomic data subset.
 
 ### Outputs
-- **Human Cohort 2**: Table 1, compositional plots, diversity plots, pathway plots, LMM results, metabolomics plots.
+- **Human Cohort 2**: Table 1, compositional plots, beta diversity PCoA plots, LinDA volcano plots, pathway correlation heatmap, CAZyme plots, assembled figure.
 - **Microbiome Analysis**: Compositional plots, alpha/beta diversity plots, TCAM scatterplots and loadings.
 - **Pathway Analysis**: Correlation heatmaps, pathway boxplots, CAZyme plots.
-- **Metabolomics Analysis**: PCA plots, volcano plots, heatmaps, boxplots.
-- **Statistical Results**: PERMANOVA results, Welch's t-test results, LMM results.
+- **Metabolomics Analysis**: PCA plots, Sex × Genotype interaction heatmaps and boxplots.
+- **Statistical Results**: PERMANOVA results, LinDA results, LMM results.
 
 ## Requirements
-### R Packages
-- `tidyverse`
-- `ggplot2`
-- `ggpubr`
-- `ComplexHeatmap`
-- `circlize`
-- `vegan`
-- `ggsci`
-- `rio`
-- `gridExtra`
-- `ape`
-- `lme4`
-- `afex`
-- `tableone`
-- `ggrepel`
+### Environment
+Dependencies are managed with [pixi](https://pixi.sh). To set up the environment:
 
-### Python Packages
-- `numpy`
-- `pandas`
-- `seaborn`
-- `matplotlib`
-- `scipy`
-- `mprod`
+```bash
+bash setup_pixi.sh
+```
+
+This installs all R and Python dependencies defined in `pixi.toml`, plus additional Bioconductor packages (TreeSummarizedExperiment, mia, phyloseq, microbiome).
+
+### R Packages (key)
+- `tidyverse`, `ggplot2`, `ggpubr`, `ggrepel`, `ggthemes`, `ggsci`
+- `ComplexHeatmap`, `circlize`
+- `vegan`, `ape`, `MicrobiomeStat`
+- `rio`, `tableone`, `gt`
+- `Cairo`
+- `rstatix`, `gridExtra`
+
+### Python Packages (key)
+- `numpy`, `pandas`, `scipy`
+- `matplotlib`, `seaborn`
+- `mprod` (for TCAM analysis)
 
 ## Code Availability
 All scripts and workflows are available in this repository.

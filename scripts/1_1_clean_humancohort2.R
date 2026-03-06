@@ -16,10 +16,11 @@ meta <- rio::import("data/human_cohort2/metadata.xlsx") |>
                   Group = as.factor(Group),
                   sex = fct_recode(sex, "Male" = "male", "Female" = "female")
                 ) |> 
-          select(ID = fecal_ID, Household = household_ID, Group, Age = age_yrs,
+          dplyr::select(ID = fecal_ID, Household = household_ID, Group, Age = age_yrs,
                   Sex = sex, Duration = als_symptom_duration_months, 
                   Familial = sporadic_or_genetic, Mutation = genetic_mutation,
-                  ALSFRS = alsfrs)
+                  ALSFRS = alsfrs, Onset = onset_site) |> 
+            mutate(Mutation = fct_relevel(Mutation, "none", after = 2L))
 saveRDS(meta, "data/human_cohort2/metadata.RDS")
 dim(meta)
 
@@ -28,11 +29,12 @@ tab <- rio::import("data/human_cohort2/combined_brackenoutput.txt")
 dim(tab) 
 names(tab) 
 tab <- tab %>% dplyr::select(name, taxonomy_lvl, contains("_frac")) %>% 
+                    filter(name != "Homo sapiens") |> 
                     dplyr::select(-taxonomy_lvl) %>% 
                     mutate(across(contains("_frac"), ~ .x * 100)) %>% # make %
                     rename_with(~ str_remove(., ".tsv_frac"), 2:ncol(.)) %>% 
                     rename_with(~ str_remove(., "_species"), 2:ncol(.)) 
-dim(tab) # 38 samples
+dim(tab) # 38 samples (39-1)
 head(tab)[1:5,1:5]
 
 readcounts <- rio::import("data/human_cohort2/readcounts_table.csv")
@@ -51,28 +53,18 @@ table(meta$Sex, meta$Group) # in ALS group 9 vs 30
 df <- df[rownames(df) %in% meta$ID[which(!is.na(meta$Sex))],]
 dim(df) # 38 samples
 
-# Pruning of species - stratified by patient group
-threshold <- 0.05 # 0.05% threshold
-min_proportion <- 0.25 # in 20% of samples within group
+# Pruning of species - stratified by patient group - done in Linda so not needed here
+# threshold <- 0.05 # 0.05% threshold
+# min_proportion <- 0.3 # in 20% of samples within group
 
-# Filter separately for each group
-mb_als <- df[rownames(df) %in% meta$ID[meta$Group == "ALS"], ]
-tk_als <- apply(mb_als, 2, function(x) sum(x >= threshold) > (min_proportion * nrow(mb_als)))
+# tk <- apply(df, 2, function(x) sum(x >= threshold) > (min_proportion * nrow(df)))
+# summary(tk)
 
-mb_control <- df[rownames(df) %in% meta$ID[meta$Group == "Control"], ]
-tk_control <- apply(mb_control, 2, function(x) sum(x >= threshold) > (min_proportion * nrow(mb_control)))
-
-# Keep species that meet criteria in at least one group
-species_filter <- tk_als | tk_control
-df_filtered <- df[, species_filter]
-dim(df_filtered) # species and 38 samples
-
-saveRDS(df_filtered, "data/human_cohort2/microbiome_pruned.RDS")
 saveRDS(df, "data/human_cohort2/microbiome.RDS")
 
 # Pathways
 pathw <- rio::import("data/human_cohort2/pathway_abundance_cpm_unstratified.txt") |> 
-                select(Pathways = `# Pathway HUMAnN v4.0.0.alpha.1`, everything()) |> 
+                dplyr::select(Pathways = `# Pathway HUMAnN v4.0.0.alpha.1`, everything()) |> 
                 filter(Pathways != "UNMAPPED" & Pathways != "UNINTEGRATED") %>%
                 rename_with(~ str_remove(., "_Abundance"), 1:ncol(.))
 dim(pathw)
@@ -107,5 +99,4 @@ write.csv(lib, "data/human_cohort2/pathwaykeys.csv", row.names = FALSE)
 lib %>% filter(str_detect(expl, "rhamnose"))
 #                                                              paths            keys                                            expl
 # 1             DTDPRHAMSYN-PWY: dTDP-&beta;-L-rhamnose biosynthesis DTDPRHAMSYN-PWY             dTDP-&beta;-L-rhamnose biosynthesis
-# 2 FUC-RHAMCAT-PWY: superpathway of fucose and rhamnose degradation FUC-RHAMCAT-PWY superpathway of fucose and rhamnose degradation
-# 3                            RHAMCAT-PWY: L-rhamnose degradation I     RHAMCAT-PWY                        L-rhamnose degradation I
+# 2                            RHAMCAT-PWY: L-rhamnose degradation I     RHAMCAT-PWY                        L-rhamnose degradation I

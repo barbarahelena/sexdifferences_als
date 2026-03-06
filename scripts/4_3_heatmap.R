@@ -12,24 +12,33 @@ library(ggsci)
 met <- readRDS("data/metabolome/metabolomics.RDS")
 meta <- readRDS("data/metadata.RDS")
 
-res_ctrl <- rio::import("results/metabolomics/ttests/metabolites_welcht_ctrl_sex_sig.csv")
-res_tdp43 <- rio::import("results/metabolomics/ttests/metabolites_welcht_tdp_sex_sig.csv")
-sig_metabolites <- unique(c(res_ctrl$metabolite, res_tdp43$metabolite))
+# Compute Sex x Genotype interaction per metabolite (two-way ANOVA) on all metabolites
+met_with_meta <- met %>%
+  rownames_to_column("ID") %>%
+  left_join(meta %>% select(ID, Sex, Intervention), by = "ID")
 
-# Join the results for female mice only (to deduplicate tables)
-resfull_ctrl <- rio::import("results/metabolomics/ttests/metabolites_welcht_ctrl_sex_diff.csv")
-resfull_tdp43 <- rio::import("results/metabolomics/ttests/metabolites_welcht_tdp_sex_sig.csv")
-combined_results <- resfull_ctrl %>% 
-  filter(Sex == "Female" & metabolite %in% sig_metabolites) %>% 
-  select(metabolite, p.value, q.value, Sex, sig) %>%
-  full_join(
-    resfull_tdp43 %>% 
-      filter(Sex == "Female" & metabolite %in% sig_metabolites) %>% 
-      select(metabolite, p.value, q.value, sig),
-    by = "metabolite", 
-    suffix = c("_ctrl", "_tdp43")
+interaction_results <- map_dfr(colnames(met), function(m) {
+  df <- met_with_meta %>% select(ID, Sex, Intervention, value = all_of(m))
+  fit <- lm(value ~ Sex * Intervention, data = df)
+  p_int <- anova(fit)["Sex:Intervention", "Pr(>F)"]
+  tibble(metabolite = m, p_interaction = p_int)
+}) %>%
+  mutate(
+    q_interaction = p.adjust(p_interaction, method = "BH"),
+    sig_interaction = case_when(
+      p_interaction < 0.001 ~ "***",
+      p_interaction < 0.01  ~ "**",
+      p_interaction < 0.05  ~ "*",
+      TRUE ~ ""
+    )
   )
-write.csv(combined_results$metabolite, "results/metabolomics/ttests/sig_metabolites.csv", row.names = FALSE)
+write.csv(interaction_results, "results/metabolomics/ttests/interaction_lm_results.csv", row.names = FALSE)
+
+# Filter: metabolites with significant Sex x Genotype interaction (nominal p < 0.05)
+# Note: with n=5/group FDR correction yields no significant results
+sig_metabolites <- interaction_results %>%
+  filter(p_interaction < 0.05) %>%
+  pull(metabolite)
 
 # Prepare metabolite data matrix
 met_matrix <- met %>%
@@ -37,15 +46,12 @@ met_matrix <- met %>%
   mutate(across(everything(.), ~ scale(.x)))%>%
   as.matrix() %>% t()
 
-# Create p-value annotation matrix
-pval <- combined_results %>% select(metabolite, p.value_ctrl, p.value_tdp43, sig_ctrl, sig_tdp43)
-
 # Get sample metadata
 sample_info <- meta %>%
   select(ID, Sex, Intervention) %>%
   arrange(Sex, Intervention)
 met_matrix <- met_matrix[,sample_info$ID]
-pval <- pval[match(rownames(met_matrix), pval$metabolite),]
+pval <- interaction_results[match(rownames(met_matrix), interaction_results$metabolite), ]
 
 # Define color functions for heatmap
 col_fun <- circlize::colorRamp2(c(-1, 0, 1), c(pal_nejm()(6)[6], "white", pal_nejm()(3)[3])) # color mapping for blocks heatmap
@@ -60,24 +66,19 @@ pvalue_col_fun = colorRamp2(c(0, 1, 3), c("lightgrey", "white", pal_nejm()(5)[5]
                 column_order = sample_info$ID,
                 cluster_columns = FALSE,
                 clustering_method_rows = "ward.D",
-                left_annotation = rowAnnotation(pvalue_tdp43 = anno_simple(-log10(pval$p.value_tdp43), 
+                left_annotation = rowAnnotation(
+                                                interaction = anno_simple(-log10(pval$p_interaction),
                                                                      which = 'row',
-                                                                     col = pvalue_col_fun, 
-                                                                     pch = pval$sig_tdp43,
-                                                                     pt_size = unit(1, "snpc")*0.7
-                                                                     ),
-                                                pvalue_ctrl = anno_simple(-log10(pval$p.value_ctrl), 
-                                                                     which = 'row',
-                                                                     col = pvalue_col_fun, 
-                                                                     pch = pval$sig_ctrl,
-                                                                     pt_size = unit(1, "snpc")*0.7
+                                                                     col = pvalue_col_fun,
+                                                                     pch = pval$sig_interaction,
+                                                                     pt_gp = gpar(fontsize = 7)
                                                                      ),
                                                 annotation_name_side = "bottom",
                                                 width = unit(0.8, "cm"),
                                                 annotation_name_gp = grid::gpar(fontsize = 8)),
-                # width = unit(6, "cm"), 
-                # height = unit(0.25*28, "cm"), 
-                row_names_side = "left", 
+                # width = unit(6, "cm"),
+                # height = unit(0.25*28, "cm"),
+                row_names_side = "left",
                 column_gap = unit(2, "mm"),
                 row_dend_side = "right",
                 show_column_names = FALSE,
@@ -86,8 +87,8 @@ pvalue_col_fun = colorRamp2(c(0, 1, 3), c("lightgrey", "white", pal_nejm()(5)[5]
                
 lgd_pvalue = Legend(title = "p-value", col_fun = pvalue_col_fun, at = c(0, 1, 2, 3), 
                     labels = c("1", "0.1", "0.01", "0.001"))
-lgd_sig = Legend(pch = c("*","**","***","****"), type = "points", 
-                    labels = c("0.05", "0.01", "0.001", "<0.001"),
+lgd_sig = Legend(pch = c("*","**","***"), type = "points",
+                    labels = c("<0.05", "<0.01", "<0.001"),
                     legend_gp = gpar(fontsize = 8))
 pl1_anno <- draw(pl1, annotation_legend_list = list(lgd_pvalue, lgd_sig))
 
@@ -116,17 +117,12 @@ dev.off()
                 column_order = sample_info$ID,
                 cluster_columns = FALSE,
                 clustering_method_rows = "average",
-                left_annotation = rowAnnotation(pvalue_tdp43 = anno_simple(-log10(pval$p.value_tdp43), 
+                left_annotation = rowAnnotation(
+                                                interaction = anno_simple(-log10(pval$p_interaction),
                                                                      which = 'row',
-                                                                     col = pvalue_col_fun, 
-                                                                     pch = pval$sig_tdp43,
-                                                                     pt_size = unit(1, "npc")*0.7
-                                                                     ),
-                                                pvalue_ctrl = anno_simple(-log10(pval$p.value_ctrl), 
-                                                                     which = 'row',
-                                                                     col = pvalue_col_fun, 
-                                                                     pch = pval$sig_ctrl,
-                                                                     pt_size = unit(1, "npc")*0.7
+                                                                     col = pvalue_col_fun,
+                                                                     pch = pval$sig_interaction,
+                                                                     pt_gp = gpar(fontsize = 7)
                                                                      ),
                                                 annotation_name_side = "bottom",
                                                 width = unit(0.8, "cm"),
@@ -143,8 +139,8 @@ dev.off()
 )               
 lgd_pvalue = Legend(title = "p-value", col_fun = pvalue_col_fun, at = c(0, 1, 2, 3), 
                     labels = c("1", "0.1", "0.01", "0.001"))
-lgd_sig = Legend(pch = c("*","**","***","****"), type = "points", 
-                    labels = c("0.05", "0.01", "0.001", "<0.001"),
+lgd_sig = Legend(pch = c("*","**","***"), type = "points",
+                    labels = c("<0.05", "<0.01", "<0.001"),
                     legend_gp = gpar(fontsize = 8))
 pl2_anno <- draw(pl2, annotation_legend_list = list(lgd_pvalue, lgd_sig))
 
@@ -155,21 +151,25 @@ svg("results/metabolomics/heatmaps/heatmap_samplenames.svg", width = 8, height =
 pl2_anno
 dev.off()
 
-## Ggarrange all metabolomics plots ##
+## Ggarrange all pathway and metabolomics plots ##
 heatmap_grob <- grid.grabExpr(draw(
       pl1_anno,
       padding = unit(c(2, 10, 10, 2), "mm"), # top, right, bottom, left padding
   )
 )
-fig <- ggarrange(ggarrange(pca1, pca2, nrow = 1, labels = LETTERS[1:2], widths = c(1,1.5)),
-          ggarrange(plgeno, plwt, pltdp, nrow = 1, labels = LETTERS[3:5]),
-          as_ggplot(heatmap_grob), 
-          boxplots,
-          nrow = 4, heights = c(1, 1, 1.5, 1.5), labels = c("", "", LETTERS[6], ""))
-ggsave("results/metabolomics/assembled_figure.pdf", plot = fig, width = 14, height = 20)
 
-fig <- ggarrange(ggarrange(pca1, pca2, nrow = 1, labels = LETTERS[1:2], widths = c(1,1.5)),
-          ggarrange(plgeno, plwt, pltdp, nrow = 1, labels = LETTERS[3:5]),
-          ggarrange(boxplots, as_ggplot(heatmap_grob), labels = c("", LETTERS[18]), nrow = 1),
-          nrow = 3, heights = c(0.7, 0.7, 1.8))
-ggsave("results/metabolomics/assembled_figure_2.pdf", plot = fig, width = 18, height = 21)
+(metabolomics <- ggarrange(pca1, pca2, as_ggplot(heatmap_grob), nrow = 1, labels = LETTERS[4:6], widths = c(1, 1.5, 3.0)))
+
+
+# fig <- ggarrange(ggarrange(pca1, pca2, nrow = 1, labels = LETTERS[1:2], widths = c(1,1.5)),
+#           ggarrange(plgeno, plwt, pltdp, nrow = 1, labels = LETTERS[3:5]),
+#           as_ggplot(heatmap_grob), 
+#           boxplots,
+#           nrow = 4, heights = c(1, 1, 1.5, 1.5), labels = c("", "", LETTERS[6], ""))
+# ggsave("results/metabolomics/assembled_figure.pdf", plot = fig, width = 14, height = 20)
+
+# fig <- ggarrange(ggarrange(pca1, pca2, nrow = 1, labels = LETTERS[1:2], widths = c(1,1.5)),
+#           ggarrange(plgeno, plwt, pltdp, nrow = 1, labels = LETTERS[3:5]),
+#           ggarrange(boxplots, as_ggplot(heatmap_grob), labels = c("", LETTERS[18]), nrow = 1),
+#           nrow = 3, heights = c(0.7, 0.7, 1.8))
+# ggsave("results/metabolomics/assembled_figure_2.pdf", plot = fig, width = 18, height = 21)

@@ -37,7 +37,7 @@ theme_Publication <- function(base_size=14, base_family="sans") {
                 plot.margin=unit(c(10,5,5,5),"mm"),
                 strip.background=element_rect(colour="#f0f0f0",fill="#f0f0f0"),
                 strip.text = element_text(face="bold"),
-                plot.caption = element_text(size = rel(0.5), face = "italic")
+                plot.caption = element_text(size = rel(0.9), face = "italic")
         ))
     
 } 
@@ -54,37 +54,19 @@ mb <- mb[rownames(mb) %in% df$ID, ]
 shannon <- vegan::diversity(mb, index = 'shannon')
 df_shan <- data.frame(ID = names(shannon), shannon = shannon)
 df_shan <- left_join(df_shan, df, by = "ID")
-p_shan_female <- round(wilcox.test(shannon ~ Group, data = df_shan |> filter(Sex == "Female"))$p.value, 3)
-p_shan_male <- round(wilcox.test(shannon ~ Group, data = df_shan |> filter(Sex == "Male"))$p.value, 3)
-shan_caption <- paste0("ALS-Control p = ", p_shan_female, " (women); p = ", p_shan_male, " (men)")
+model_shan <- lm(shannon ~ Sex * Group, data = df_shan)
+int_row <- grep(":", rownames(summary(model_shan)$coefficients), value = TRUE)
+p_int_shan <- if (length(int_row) > 0) summary(model_shan)$coefficients[int_row[1], 4] else NA
+shan_caption <- paste0("Sex \u00d7 Group interaction: p = ", format.pval(p_int_shan, digits = 2))
 (plshan <- ggplot(data = df_shan, aes(x = Sex, y = shannon, fill = Sex)) +
     scale_fill_manual(values = pal_nejm()(2), guide = "none") +
     stat_compare_means(method = "wilcox.test") +
     facet_wrap(~Group) +
     geom_boxplot(outlier.shape = NA) +
     geom_jitter(width = 0.2, alpha = 0.6) +
-    labs(title = "Shannon index", y = "Shannon index", x="Sex", caption = shan_caption) +
+    labs(title = "Shannon index", y = "Shannon index", x = "Sex", caption = shan_caption) +
     theme_Publication())
-# ggsave(plshan, filename = "results/humancohort2/shannon.pdf", width = 4, height = 5)
-
-## Species richness
-specrich <- specnumber(mb)
-dfspec <- data.frame(ID = names(specrich), richness = specrich)
-dfspec <- left_join(dfspec, df, by = "ID")
-p_rich_female <- round(wilcox.test(richness ~ Group, data = dfspec |> filter(Sex == "Female"))$p.value, 3)
-p_rich_male <- round(wilcox.test(richness ~ Group, data = dfspec |> filter(Sex == "Male"))$p.value, 3)
-rich_caption <- paste0("ALS-Control p = ", p_rich_female, " (women); p = ", p_rich_male, " (men)")
-(plrich <- ggplot(data = dfspec, aes(x = Sex, y = richness, fill = Sex)) +
-    scale_fill_manual(values = pal_nejm()(2), guide = "none") +
-    stat_compare_means(method = "wilcox.test") +
-    geom_boxplot(outlier.shape = NA) +
-    geom_jitter(width = 0.2, alpha = 0.6) +
-    facet_wrap(~Group) +
-    labs(title = "Richness", y = "Number of species", x="Sex", caption = rich_caption) +
-    theme_Publication())
-# ggsave(plrich, filename = "results/humancohort2/richness.pdf", width = 4, height = 5)
-ggarrange(plshan, plrich, nrow = 1)
-ggsave("results/humancohort2/alphadiversity.pdf", width = 10, height = 6)
+ggsave(plshan, filename = "results/humancohort2/alphadiversity.pdf", width = 6, height = 6)
 
 # Beta diversity in ALS
 dfals <- df |> filter(Group == "ALS")
@@ -109,14 +91,15 @@ res <- as.data.frame(res)
         scale_color_manual(values = pal_nejm()(2)) +
         scale_fill_manual(values = pal_nejm()(2), guide = "none") +
         theme_Publication() +
-        labs(color = "", fill = "", title = "Patients with ALS") +
+        labs(color = "", fill = "", title = "Beta diversity: Patients with ALS") +
         stat_ellipse(geom = "polygon", aes(color = Sex, fill = Sex), type = "norm",
             alpha = 0.1, linewidth = 1.0) +
         theme(legend.position = "top"))
 
 
-pl1 <- pl1 + annotate("text", x = Inf, y = Inf, label = paste0("Sex: p = ", round(res$`Pr(>F)`[1], 3)),
-                    hjust = 1.1, vjust = 1.1, size = 3)
+pl1 <- pl1 + annotate("text", x = Inf, y = Inf,
+                    label = paste0("Sex: p = ", round(res$`Pr(>F)`[1], 3), ", R\u00b2 = ", round(res$R2[1], 3)),
+                    hjust = 1.1, vjust = 1.1, size = 5)
 
 # Beta diversity in controls
 dfctrl <- df |> filter(Group == "Control")
@@ -141,14 +124,15 @@ res <- as.data.frame(res)
         scale_color_manual(values = pal_nejm()(2)) +
         scale_fill_manual(values = pal_nejm()(2), guide = "none") +
         theme_Publication() +
-        labs(color = "", fill = "", title = "Controls") +
+        labs(color = "", fill = "", title = "Beta diversity: Controls") +
         stat_ellipse(geom = "polygon", aes(color = Sex, fill = Sex), type = "norm",
             alpha = 0.1, linewidth = 1.0) +
         theme(legend.position = "top"))
 
 
-pl2 <- pl2 + annotate("text", x = Inf, y = Inf, label = paste0("Sex: p = ", round(res$`Pr(>F)`[1], 3)),
-                    hjust = 1.1, vjust = 1.1, size = 3)
+pl2 <- pl2 + annotate("text", x = Inf, y = Inf,
+                    label = paste0("Sex: p = ", round(res$`Pr(>F)`[1], 3), ", R\u00b2 = ", round(res$R2[1], 3)),
+                    hjust = 1.1, vjust = 1.1, size = 5)
 
 ggarrange(pl1, pl2, nrow = 1, labels = LETTERS[1:2], common.legend = TRUE, legend = "bottom")
 ggsave("results/humancohort2/PCoA_BrayCurtis.pdf", width = 12, height = 6)

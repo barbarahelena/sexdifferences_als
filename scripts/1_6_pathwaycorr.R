@@ -10,6 +10,7 @@ library(rio)
 library(forcats)
 library(ComplexHeatmap)
 library(Cairo)
+library(microbiome)
 
 # Plot theme
 theme_Publication <- function(base_size=12, base_family="sans") {
@@ -67,16 +68,15 @@ correlate_bugs_pathways <- function(merged_df, bugs, pathways) {
 
 
 ## Data
-mb <- readRDS("data/human_cohort2/microbiome_pruned.RDS") |> 
-  mutate(across(where(is.numeric), log10))
+mb <- readRDS("data/human_cohort2/microbiome.RDS") |>
+  mutate(across(where(is.numeric), log10)) # none of the selected bugs below have zeros
 dim(mb)
-microb <- read.csv("results/humancohort2/wilcoxons_microbes.csv") |> 
-  filter(pval_als < 0.05) |> 
-  arrange(pval_als) |> 
-  slice(1:15)
+microb <- read.csv("results/humancohort2/linda_results.csv") |> 
+  filter(qval_als_sex < 0.05) |> 
+  arrange(pval_als_sex)
 microb
 mb_cols <- colnames(mb)
-mb_subset <- mb[, microb$mbname, drop = FALSE]
+mb_subset <- mb[, microb$feature, drop = FALSE]
 bugs <- names(mb_subset)
 mb_subset$ID <- rownames(mb_subset)
 
@@ -84,7 +84,7 @@ df <- readRDS("data/human_cohort2/human_als_pathways.RDS") %>%
   filter(rownames(.) %in% rownames(mb_subset)) # only samples that are in the microbiome data
 head(df)
 dim(df)
-pathways <- colnames(df)[1:ncol(df)-1]
+pathways <- colnames(df)[1:(ncol(df)-1)]
 pathways2 <- c("DTDPRHAMSYN-PWY", "RHAMCAT-PWY")
 keypath <- readRDS("data/human_cohort2/pathwaykeys.RDS")
 meta <- readRDS("data/human_cohort2/metadata.RDS")
@@ -93,11 +93,11 @@ meta <- readRDS("data/human_cohort2/metadata.RDS")
 df$ID <- rownames(df)
 merged_df <- mb_subset %>%
   right_join(df, by = "ID") %>%
-  select(-ID)
+  dplyr::select(-ID)
 
 ### Correlations and heatmap ###
 # Calculate correlations and identify significant ones
-correlations <- correlate_bugs_pathways(merged_df, bugs, pathways) %>%
+correlations <- correlate_bugs_pathways(merged_df, bugs, pathways) |> 
     mutate(q.value = p.adjust(P.value, method = "fdr")) %>%
     left_join(keypath, by = c("Pathway" = "keys"))
 sig_pathways <- correlations %>% filter(q.value < 0.05) %>% pull(Pathway) %>% unique()
@@ -105,19 +105,19 @@ correlations_filtered <- correlations %>% filter(Pathway %in% sig_pathways)
 
 # Transform correlation data to matrix format - TRANSPOSED
 corr_matrix <- correlations_filtered %>%
-  select(Bug, Pathway, Correlation) %>%
+  dplyr::select(Bug, Pathway, Correlation) %>%
   pivot_wider(names_from = Bug, values_from = Correlation) %>%
   column_to_rownames("Pathway")
 
 # Store q-values in a matrix format for cell annotation - TRANSPOSED
 qval_matrix <- correlations_filtered %>%
-  select(Bug, Pathway, q.value) %>%
+  dplyr::select(Bug, Pathway, q.value) %>%
   pivot_wider(names_from = Bug, values_from = q.value) %>%
   column_to_rownames("Pathway")
 
 # Get pathway explanations for better labels
 pathway_labels <- correlations_filtered %>%
-  select(Pathway, expl) %>%
+  dplyr::select(Pathway, expl) %>%
   mutate(expl = str_remove(expl, "\\s*\\([^)]*\\)"), 
         expl = as.factor(expl)) %>% 
   mutate(expl = gsub("&beta;", "β", expl, fixed=TRUE)) %>%
@@ -167,14 +167,14 @@ heatmap_bugs_pathways <- Heatmap(
 )
 heatmap_bugs_pathways
 
-lgd_sig = Legend(pch = c("*","**","***","****"), type = "points", 
-                    labels = c("0.05", "0.01", "0.001", "<0.001"),
+lgd_sig_path = Legend(title = "q-value", pch = c("*","**","***","****"), type = "points", 
+                    labels = c("<0.05", "<0.01", "<0.001", "<0.001"),
                     legend_gp = gpar(fontsize = 8))
-heatmap_anno <- draw(heatmap_bugs_pathways, annotation_legend_list = list(lgd_sig))
+heatmap_anno <- draw(heatmap_bugs_pathways, annotation_legend_list = list(lgd_sig_path))
 
 heatmap_grob <- grid.grabExpr(draw(
       heatmap_bugs_pathways, 
-      annotation_legend_list = list(lgd_sig),
+      annotation_legend_list = list(lgd_sig_path),
       padding = unit(c(15, 65, 10, 2), "mm"), # bottom, left, top, right padding
   )
 )
@@ -182,34 +182,52 @@ ggsave("results/humancohort2/heatmap_microbes_pathways_complex.pdf", plot = as_g
        width = 12, height = 30)
 
 # Save with less margin
-cairo_pdf("results/humancohort/heatmap_microbes_pathways.pdf", width = 15, height = 45,
+cairo_pdf("results/humancohort2/heatmap_microbes_pathways.pdf", width = 15, height = 45,
           family = "Helvetica")
 draw(heatmap_anno, padding = unit(c(5,5,5,20), "mm"))
 dev.off()
 
-### Top 15 strongest correlations heatmap ###
-n_top <- 15
-top_pathways <- correlations_filtered %>%
-  group_by(Pathway) %>%
-  summarise(max_abs_cor = max(abs(Correlation), na.rm = TRUE)) %>%
-  arrange(desc(max_abs_cor)) %>%
-  slice(1:n_top) %>%
+### Top pathways heatmap (proportional to neg/pos ratio) ###
+# For each pathway, identify its dominant correlation direction
+# (the extreme value with the largest absolute correlation)
+total_show <- 30
+
+pathway_extremes <- correlations_filtered |>
+  group_by(Pathway) |>
+  summarise(extreme_cor = Correlation[which.max(abs(Correlation))], .groups = "drop")
+
+n_neg <- sum(pathway_extremes$extreme_cor < 0)
+n_pos <- sum(pathway_extremes$extreme_cor >= 0)
+n_show_neg <- round(total_show * n_neg / (n_neg + n_pos))
+n_show_pos <- total_show - n_show_neg
+
+top_neg <- pathway_extremes |>
+  filter(extreme_cor < 0) |>
+  arrange(extreme_cor) |>
+  dplyr::slice(1:n_show_neg) |>
   pull(Pathway)
 
-corr_top <- correlations_filtered %>% filter(Pathway %in% top_pathways)
+top_pos <- pathway_extremes |>
+  filter(extreme_cor >= 0) |>
+  arrange(desc(extreme_cor)) |>
+  dplyr::slice(1:n_show_pos) |>
+  pull(Pathway)
+
+top_pathways <- unique(c(top_neg, top_pos))
+corr_top <- correlations_filtered |> filter(Pathway %in% top_pathways)
 
 corr_matrix_top <- corr_top %>%
-  select(Bug, Pathway, Correlation) %>%
+  dplyr::select(Bug, Pathway, Correlation) %>%
   pivot_wider(names_from = Bug, values_from = Correlation) %>%
   column_to_rownames("Pathway")
 
 qval_matrix_top <- corr_top %>%
-  select(Bug, Pathway, q.value) %>%
+  dplyr::select(Bug, Pathway, q.value) %>%
   pivot_wider(names_from = Bug, values_from = q.value) %>%
   column_to_rownames("Pathway")
 
 pathway_labels_top <- corr_top %>%
-  select(Pathway, expl) %>%
+  dplyr::select(Pathway, expl) %>%
   mutate(expl = str_remove(expl, "\\s*\\([^)]*\\)"),
          expl = as.factor(expl)) %>%
   mutate(expl = gsub("&beta;", "\u03b2", expl, fixed = TRUE)) %>%
@@ -259,7 +277,7 @@ heatmap_top <- Heatmap(
 
 heatmap_top_grob <- grid.grabExpr(draw(
   heatmap_top,
-  annotation_legend_list = list(lgd_sig),
+  annotation_legend_list = list(lgd_sig_path),
   padding = unit(c(15, 65, 10, 2), "mm")
 ))
 ggsave("results/humancohort2/heatmap_microbes_pathways_top15.pdf", plot = as_ggplot(heatmap_top_grob),
@@ -272,7 +290,7 @@ merged_df <- df %>% right_join(meta, by = "ID")
 sex_diff_results <- data.frame()
 for(a in 1:length(sig_pathways)){
     pw <- sig_pathways[[a]]
-    dfpath <- merged_df %>% select(Sex, Group, all_of(pw))
+    dfpath <- merged_df %>% dplyr::select(Sex, Group, all_of(pw))
     dfpath$path_y <- dfpath[[3]]
 
     # Test sex difference in ALS
@@ -375,7 +393,7 @@ if(length(res_box) > 0){
 # Recreate merged_df with bugs + pathways for correlations
 merged_df_full <- mb_subset %>%
   right_join(df, by = "ID") %>%
-  select(-ID)
+  dplyr::select(-ID)
 
 # Calculate correlations and identify significant ones
 correlations <- correlate_bugs_pathways(merged_df_full, bugs, pathways2) %>%
@@ -386,19 +404,19 @@ correlations_filtered <- correlations %>% filter(Pathway %in% sig_pathways)
 
 # Transform correlation data to matrix format - TRANSPOSED
 corr_matrix <- correlations_filtered %>%
-  select(Bug, Pathway, Correlation) %>%
+  dplyr::select(Bug, Pathway, Correlation) %>%
   pivot_wider(names_from = Bug, values_from = Correlation) %>%
   column_to_rownames("Pathway")
 
 # Store q-values in a matrix format for cell annotation - TRANSPOSED
 qval_matrix <- correlations_filtered %>%
-  select(Bug, Pathway, q.value) %>%
+  dplyr::select(Bug, Pathway, q.value) %>%
   pivot_wider(names_from = Bug, values_from = q.value) %>%
   column_to_rownames("Pathway")
 
 # Get pathway explanations for better labels
 pathway_labels <- correlations_filtered %>%
-  select(Pathway, expl) %>%
+  dplyr::select(Pathway, expl) %>%
   mutate(expl = str_remove(expl, "\\s*\\([^)]*\\)"), 
         expl = as.factor(expl)) %>% 
   mutate(expl = gsub("&beta;", "β", expl, fixed=TRUE)) %>%
@@ -448,10 +466,10 @@ heatmap_bugs_pathways <- Heatmap(
 
 heatmap_bugs_pathways
 
-lgd_sig = Legend(pch = c("*","**","***","****"), type = "points", 
-                    labels = c("0.05", "0.01", "0.001", "<0.001"),
+lgd_sig_path = Legend(title = "q-value", pch = c("*","**","***","****"), type = "points",
+                    labels = c("<0.05", "<0.01", "<0.001", "<0.001"),
                     legend_gp = gpar(fontsize = 8))
-heatmap_anno <- draw(heatmap_bugs_pathways, annotation_legend_list = list(lgd_sig))
+heatmap_anno <- draw(heatmap_bugs_pathways, annotation_legend_list = list(lgd_sig_path))
 
 # Save
 cairo_pdf("results/humancohort2/heatmap_microbes_pathways_rhamnose.pdf", width = 12, height = 4,
@@ -474,7 +492,7 @@ merged_df_rham <- df %>% right_join(meta, by = "ID")
 
 sex_diff_rhamnose <- data.frame()
 for (pw in pathways2) {
-  dfpath <- merged_df_rham %>% select(Sex, Group, all_of(pw))
+  dfpath <- merged_df_rham |> dplyr::select(Sex, Group, all_of(pw))
   dfpath$path_y <- dfpath[[3]]
 
   test_als <- wilcox.test(path_y ~ Sex, data = dfpath %>% filter(Group == "ALS"))
@@ -487,8 +505,7 @@ for (pw in pathways2) {
   ))
 }
 
-sex_diff_rhamnose <- sex_diff_rhamnose %>%
-  left_join(keypath, by = c("Pathway" = "keys"))
+sex_diff_rhamnose <- sex_diff_rhamnose |> left_join(keypath, by = c("Pathway" = "keys"))
 print(sex_diff_rhamnose)
 write.csv(sex_diff_rhamnose, "results/humancohort2/rhamnose_pathways_sexdiff.csv", row.names = FALSE)
 
@@ -496,7 +513,7 @@ write.csv(sex_diff_rhamnose, "results/humancohort2/rhamnose_pathways_sexdiff.csv
 rham_plots <- list()
 for (i in seq_along(pathways2)) {
   pw <- pathways2[i]
-  dfpath <- merged_df_rham %>% select(Sex, Group, all_of(pw))
+  dfpath <- merged_df_rham |> dplyr::select(Sex, Group, all_of(pw))
   dfpath$path_y <- dfpath[[3]]
 
   pval_als <- sex_diff_rhamnose %>% filter(Pathway == pw) %>% pull(p_als)
@@ -508,7 +525,7 @@ for (i in seq_along(pathways2)) {
                          "\nControl sex diff: p = ", format.pval(pval_control, digits = 2))
 
   rham_plots[[i]] <- ggplot(data = dfpath, aes(x = Sex, y = path_y)) +
-    stat_compare_means(method = "wilcox.test", label = "p.format", size = 4) +
+    stat_compare_means(method = "t.test", label = "p.format", size = 4) +
     geom_boxplot(aes(fill = Sex), outlier.shape = NA, width = 0.5, alpha = 0.9) +
     geom_jitter(color = "grey5", height = 0, width = 0.1, alpha = 0.75) +
     scale_fill_manual(guide = "none", values = ggsci::pal_nejm()(2)) +

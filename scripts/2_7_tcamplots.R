@@ -84,13 +84,13 @@ tcam_male <- tcam %>% filter(Sex == "Male")
 tcam_male_dist <- tcam_male %>% select(all_of(c(f1n, f2n))) %>% dist(method = "euclidean")
 (permanova_male <- adonis2(tcam_male_dist ~ Genotype, data = tcam_male, permutations = 999, method = "euclidean", by = "term"))
 
-# 3. PERMANOVA for genotype in males
+# 4. PERMANOVA for genotype in males
 tcam_dist <- tcam %>% select(all_of(c(f1n, f2n))) %>% dist(method = "euclidean")
-(permanova_male <- adonis2(tcam_dist ~ Genotype * Sex, data = tcam, permutations = 999, method = "euclidean", by = "term"))
+(permanova_interaction <- adonis2(tcam_dist ~ Genotype * Sex, data = tcam, permutations = 999, method = "euclidean", by = "term"))
 
-annotation_text <- str_c("all: p = ", permanova_genotype$`Pr(>F)`[1], "\n",
-                    "females: p = ", permanova_fem$`Pr(>F)`[1], "\n",
-                    "males: p = ", permanova_male$`Pr(>F)`[1])
+annotation_text <- str_c("genotype*sex: p = ", permanova_interaction$`Pr(>F)`[3], "\n",
+                    "genotype (F): p = ", permanova_fem$`Pr(>F)`[1], "\n",
+                    "genotype (M): p = ", permanova_male$`Pr(>F)`[1])
 
 ### TCAM plot ###
 (tcampl <- ggplot(data = tcam, aes(x = .data[[f1n]], y = .data[[f2n]], 
@@ -116,12 +116,12 @@ ggsave("results/microbiome/tcam/routput/f1f2_scatter.pdf", width = 6, height = 6
 # 1. PERMANOVA for Sex effect within WT
 tcam_wt <- tcam %>% filter(Genotype == "WT")
 tcam_wt_dist <- tcam_wt %>% select(all_of(c(f1n, f2n))) %>%dist(method = "euclidean")
-(permanova_sex_wt <- adonis2(tcam_wt_dist ~ Sex, data = tcam_wt, permutations = 999, method = "euclidean"))
+(permanova_sex_wt <- adonis2(tcam_wt_dist ~ Sex, data = tcam_wt, permutations = 999, method = "euclidean", by = "term"))
 
 # 2. PERMANOVA for Sex effect within TDP-43
 tcam_tdp <- tcam %>% filter(Genotype == "TDP43") 
 tcam_tdp_dist <- tcam_tdp %>% select(all_of(c(f1n, f2n))) %>% dist(method = "euclidean")
-(permanova_sex_tdp <- adonis2(tcam_tdp_dist ~ Sex, data = tcam_tdp, permutations = 999, method = "euclidean"))
+(permanova_sex_tdp <- adonis2(tcam_tdp_dist ~ Sex, data = tcam_tdp, permutations = 999, method = "euclidean", by = "term"))
 
 pvalues <- c(permanova_sex_wt$`Pr(>F)`[1], permanova_sex_tdp$`Pr(>F)`[1])
 genotype <- c("WT", "TDP43")
@@ -138,7 +138,7 @@ res <- data.frame(Genotype = genotype, pvalue = pvalues)
         theme_minimal() +
         labs(x=str_c(str_replace(f1n, "[.]", " "), "%"),
             y=str_c(str_replace(f2n, "[.]", " "), "%")) +
-        geom_text(data = res, aes(x = Inf, y = Inf, label = paste0("p = ", round(pvalue, 3))),
+        geom_text(data = res, aes(x = Inf, y = Inf, label = paste0("sex: p = ", round(pvalue, 3))),
                               hjust = 1.1, vjust = 1.1, size = 4, inherit.aes = FALSE) +
         theme_Publication() +
         facet_wrap(~Genotype) +
@@ -246,7 +246,7 @@ mbsel_long <- mbsel %>%
   pivot_longer(cols = c(-ID, -Genotype, -Age_ints, -GenotypePerSex, -Sex), 
                         names_to = "microbe", values_to = "value")
 
-(sexdiff_lineplots <- ggplot(means_ses_long, aes(x = Age_ints, y = mean, 
+(sexdiff_lineplots_wt <- ggplot(means_ses_long, aes(x = Age_ints, y = mean, 
                                     group = Sex, color = Sex)) +
                       geom_line() +
                       geom_jitter(data = mbsel_long %>% filter(Genotype == "WT"), aes(x = Age_ints, y = value, 
@@ -269,7 +269,7 @@ ggsave("results/microbiome/tcam/routput/lineplots_wt_sex.pdf", width = 15, heigh
                   genotype_lineplots,
                   sexdiff_lineplots,
                   ncol = 1, heights = c(1.3, 0.8, 0.8, 0.8), labels = c("", "", LETTERS[6:7])))
-ggsave("results/microbiome/assembled_microbiome.pdf", width = 16, height = 20)
+ggsave("results/microbiome/assembled_microbiome.pdf", width = 17, height = 22)
 
 # 20 microbes with highest loadings
 ## Lineplots ##
@@ -422,37 +422,3 @@ for(i in seq_along(microbe_names)) {
 pdf("results/microbiome/tcam/routput/boxplots_top10_f1.pdf", width = 20, height = 25)
 gridExtra::grid.arrange(grobs = res_box, ncol = 5)
 dev.off()
-
-## Lactobacillus rhamnosus
-df <- readRDS("data/microbiome/microbiome_run1.RDS")
-lac <- df %>% select(contains("Lactobacillus"))
-lac <- lac[,apply(lac, 2, mean) > 0.001]
-dim(lac)
-names(lac)
-lac$ID <- rownames(lac)
-lac2 <- left_join(lac, meta, by = "ID")
-head(lac2)
-
-lac2 <- lac2 %>% filter(Genotype == "TDP43") %>% filter(Age_ints <= 18)
-plist <- list()
-for(i in 1:7){
-  lac2$var <- log10(lac2[[i]] + 0.001)
-  print(names(lac2)[i])
-  means <- lac2 %>% group_by(Sex, Age_ints) %>% summarise(mean = mean(var), sd = sd(var), se = sd / sqrt(nrow(.)))
-  pl <- ggplot(means, aes(x = Age_ints, y = mean, group = Sex, color = Sex)) +
-                      geom_line() +
-                      geom_jitter(data = lac2, aes(x = Age_ints, y = var, 
-                                    color = Sex),
-                                    width = 0.1, alpha = 0.7) +
-                      scale_color_nejm() +
-                      geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
-                      labs(title = names(lac2)[i], x = "Age (weeks)",
-                          y = "log10(relative abundance)") +
-                      scale_x_continuous(breaks = c(6,8,10,12,14,16,18)) +
-                      theme_Publication() +
-                      theme(strip.text = element_text(size = 8))
-  plist[[i]] <- pl
-}
-
-ggarrange(plotlist = plist, ncol = 4, nrow = 2, labels = LETTERS[1:length(plist)], common.legend = TRUE)
-ggsave("results/microbiome/lactobacilli.pdf", width = 15, height = 15)

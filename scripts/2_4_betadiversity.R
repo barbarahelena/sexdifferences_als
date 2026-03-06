@@ -19,8 +19,8 @@ theme_Publication <- function(base_size=14, base_family="sans") {
         + theme(plot.title = element_text(face = "bold",
         size = rel(1.0), hjust = 0.5),
         text = element_text(),
-        panel.background = element_rect(colour = NA),
-        plot.background = element_rect(colour = NA),
+        panel.background = element_rect(colour = NA, fill = NA),
+        plot.background = element_rect(colour = NA, fill = NA),
         panel.border = element_rect(colour = NA),
         axis.title = element_text(face = "bold",size = rel(0.8)),
         axis.title.y = element_text(angle=90, vjust =2),
@@ -66,7 +66,7 @@ braypertimepoint_mice <- function(timepoint, df = dbray, tab = mb) {
     set.seed(14)
     dfsel <- df %>% filter(Age_weeks == timepoint)
     bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
-    return(adonis2(bray ~ Genotype, data = dfsel))
+    return(adonis2(bray ~ Genotype, data = dfsel, , by = "term"))
 }
 
 wk6 <- c(braypertimepoint_mice(timepoint = "6 weeks")['Pr(>F)'][[1]][1], "6 weeks")
@@ -108,7 +108,7 @@ braypertimepoint_mice_sexgenotype <- function(timepoint, df = dbray, tab = mb, s
     set.seed(14)
     dfsel <- df %>% filter(Age_weeks == timepoint & Sex == sex)
     bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
-    return(adonis2(bray ~ Genotype, data = dfsel))
+    return(adonis2(bray ~ Genotype, data = dfsel, by = "term"))
 }
 
 wk6 <- c(braypertimepoint_mice_sexgenotype(timepoint = "6 weeks", sex = "Male")['Pr(>F)'][[1]][1], "6 weeks")
@@ -173,7 +173,7 @@ braypertimepoint_sex(timepoint = "16 weeks", mouse = "WT")
 braypertimepoint_sex(timepoint = "18 weeks", mouse = "WT")
 
 # Sex differences in TDP43
-dfsel <- df %>% filter(Genotype == "TDP43" & Age_ints %in% c(6,10,12,14,16,18))
+dfsel <- df %>% filter(Genotype == "TDP43" & Age_ints %in% c(6,8,10,12,14,16,18))
 bray <- vegan::vegdist(mb[rownames(mb) %in% dfsel$ID,], method = 'bray')
 pcoord <- ape::pcoa(bray, correction = "cailliez")
 str(pcoord$values)
@@ -188,7 +188,7 @@ braypertimepoint_sex <- function(timepoint, mouse, df = dbray, tab = mb) {
     set.seed(14)
     dfsel <- df %>% filter(Age_weeks == timepoint & Genotype == mouse)
     bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
-    return(adonis2(bray ~ Sex, data = dfsel))
+    return(adonis2(bray ~ Sex, data = dfsel, by = "term"))
 }
 
 tdp43_wk6 <- c(braypertimepoint_sex(timepoint = "6 weeks", mouse = "TDP43")['Pr(>F)'][[1]][1], "6 weeks")
@@ -204,7 +204,7 @@ res_tdp43 <- as.data.frame(res_tdp43)
 res_tdp43$Age_weeks <- factor(res_tdp43$Age_weeks, levels = c("6 weeks", "8 weeks", "10 weeks", "12 weeks", "14 weeks", "16 weeks", "18 weeks"))
 res_tdp43$pvalue <- as.numeric(res_tdp43$pvalue)
 
-(braycurt <- dbray %>%
+(braycurt_tdp <- dbray %>%
                 ggplot(aes(Axis.1, Axis.2)) +
                     geom_point(aes(color = Sex), size = 1, alpha = 0.7) +
                     xlab(paste0('PCo1 (', round(expl_variance_bray[1], digits = 1),'%)')) +
@@ -219,7 +219,7 @@ res_tdp43$pvalue <- as.numeric(res_tdp43$pvalue)
                     geom_text(data = res_tdp43, aes(x = Inf, y = Inf, label = paste0("p = ", round(pvalue, 3))),
                               hjust = 1.1, vjust = 1.1, size = 3, inherit.aes = FALSE) +
                     facet_wrap(~ Age_weeks))
-ggsave(braycurt, filename = "results/microbiome/betadiversity/PCoA_BrayCurtis_tdp43_sex.pdf", 
+ggsave(braycurt_tdp, filename = "results/microbiome/betadiversity/PCoA_BrayCurtis_tdp43_sex.pdf", 
     width = 14, height = 5)
 
 # Sex differences in WT
@@ -233,7 +233,7 @@ dbray <- pcoord$vectors[, c('Axis.1', 'Axis.2')]
 dbray <- as.data.frame(dbray)
 dbray$ID <- rownames(dbray)
 dbray <- left_join(dbray, dfsel, by = 'ID') # add metadata / covariates
-(braycurt <- dbray %>%
+(braycurt_wt <- dbray %>%
                 ggplot(aes(Axis.1, Axis.2)) +
                     geom_point(aes(color = Sex), size = 1, alpha = 0.7) +
                     xlab(paste0('PCo1 (', round(expl_variance_bray[1], digits = 1),'%)')) +
@@ -246,17 +246,5 @@ dbray <- left_join(dbray, dfsel, by = 'ID') # add metadata / covariates
                     alpha = 0.1, linewidth = 1.0) +
                     theme(legend.position = "top") +
                     facet_wrap(~ Age_weeks, nrow = 1))
-ggsave(braycurt, filename = "results/microbiome/betadiversity/PCoA_BrayCurtis_ctrl_sex.pdf", 
+ggsave(braycurt_wt, filename = "results/microbiome/betadiversity/PCoA_BrayCurtis_ctrl_sex.pdf", 
     width = 14, height = 5)
-
-set.seed(14)
-tab <- mb
-dfsel <- df %>% filter(Genotype == "WT" & ID %in% rownames(tab))
-bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
-adonis2(bray ~ Sex, data = dfsel)
-
-set.seed(14)
-tab <- mb
-dfsel <- df %>% filter(Genotype == "TDP43" & ID %in% rownames(tab))
-bray <- vegan::vegdist(tab[rownames(tab) %in% dfsel$ID,], method = 'bray')
-adonis2(bray ~ Sex, data = dfsel)

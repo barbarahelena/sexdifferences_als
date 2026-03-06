@@ -12,7 +12,7 @@ dim(meta)
 
 # Table 1
 table_one <- CreateTableOne(
-  vars = c("Sex", "Age", "ALSFRS", "Mutation"),
+  vars = c("Sex", "Age", "ALSFRS", "Mutation", "Onset"),
   strata = "Group",
   data = meta,
   factorVars = c("Sex", "Mutation"),
@@ -20,3 +20,14 @@ table_one <- CreateTableOne(
 )
 table_one_csv <- print(table_one, nonnormal = c("ALSFRS"), quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
 write.csv(table_one_csv, "results/humancohort2/table_one_group.csv", row.names = TRUE)
+
+# Sex-stratified
+table_sex <- CreateTableOne(
+  vars = c("Sex", "Age", "ALSFRS", "Mutation", "Onset"),
+  strata = "Sex",
+  data = meta |> filter(Group == "ALS"),
+  factorVars = c("Sex", "Mutation"),
+  test = FALSE
+)
+table_csv <- print(table_sex, nonnormal = c("ALSFRS"), quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
+write.csv(table_csv, "results/humancohort2/table_sex_strata.csv", row.names = TRUE)

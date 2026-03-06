@@ -5,9 +5,10 @@
 library(tidyverse)
 library(ggsci)
 library(ggpubr)
+library(vegan)
 
 ##### Functions ####
-theme_Publication <- function(base_size=12, base_family="sans") {
+theme_Publication <- function(base_size=16, base_family="sans") {
     library(grid)
     library(ggthemes)
     (theme_foundation(base_size=base_size, base_family=base_family)
@@ -15,8 +16,8 @@ theme_Publication <- function(base_size=12, base_family="sans") {
                                           size = rel(0.8), hjust = 0.5),
                 #family = 'Helvetica'
                 text = element_text(),
-                panel.background = element_rect(colour = NA),
-                plot.background = element_rect(colour = NA),
+                panel.background = element_rect(colour = NA, fill = NA),
+                plot.background = element_rect(colour = NA, fill = NA),
                 panel.border = element_rect(colour = NA),
                 axis.title = element_text(face = "bold",size = rel(0.8)),
                 axis.title.y = element_text(angle=90,vjust =2),
@@ -66,7 +67,7 @@ df <- df %>% arrange(Group)
 (pca1 <- ggplot(df, aes(x=PC1, y=PC2, color=Group)) +
         stat_ellipse(geom = "polygon", aes(fill = Group, color = Group),
                      alpha = 0.3) +
-        geom_point(size = 3, aes(shape = Sex)) +
+        geom_point(size = 5, aes(shape = Sex)) +
         ggtitle('PCA plasma metabolites') +
         scale_color_manual(values = pal_nejm()(6)[c(6,3)]) +
         scale_fill_manual(values = pal_nejm()(6)[c(6,3)]) +
@@ -79,8 +80,8 @@ ggsave("results/metabolomics/pca/pca_groups.pdf", width = 5, height = 4.5)
 (pca2 <- ggplot(df, aes(x=PC1, y=PC2, color=Sex)) +
         stat_ellipse(geom = "polygon", aes(fill = Sex, color = Sex),
                      alpha = 0.3) +
-        geom_point(size = 3, aes(shape = Sex)) +
-        ggtitle('PCA: sex differences') +
+        geom_point(size = 5, aes(shape = Sex)) +
+        ggtitle('PCA metabolomics: sex differences') +
         scale_color_manual(values = pal_nejm()(2)) +
         scale_fill_manual(values = pal_nejm()(2)) +
         theme_minimal() +
@@ -91,24 +92,13 @@ ggsave("results/metabolomics/pca/pca_groups.pdf", width = 5, height = 4.5)
 ggsave("results/metabolomics/pca/pca_sex.pdf", width = 8, height = 4.5)
 
 #### PERMANOVA (adonis) tests ####
-library(vegan)
 dist_matrix <- vegdist(met, method = "euclidean")
 metadata <- als[match(rownames(met), als$ID), ]
 
-# Test for genotype (Group)
+# Test for genotype
 set.seed(112)
-adonis_group <- adonis2(dist_matrix ~ Intervention, data = metadata, permutations = 999, by = "term")
+adonis_group <- adonis2(dist_matrix ~ Intervention, data = metadata, permutations = 999, by = "term", method = "euclidean")
 print(adonis_group)
-
-# Test for sex
-set.seed(112)
-adonis_sex <- adonis2(dist_matrix ~ Sex, data = metadata, permutations = 999, by = "term")
-print(adonis_sex)
-
-# Test for genotype * sex interaction
-set.seed(112)
-adonis_interaction <- adonis2(dist_matrix ~ Intervention * Sex, data = metadata, permutations = 999, by = "term")
-print(adonis_interaction)
 
 # Test for sex within WT group
 wt_idx <- which(metadata$Intervention == "WT")

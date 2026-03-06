@@ -17,8 +17,8 @@ theme_composition <- function(base_size=14, base_family="sans") {
         + theme(plot.title = element_text(face = "bold",
                                           size = rel(1.0), hjust = 0.5),
                 text = element_text(),
-                panel.background = element_rect(colour = NA),
-                plot.background = element_rect(colour = NA),
+                panel.background = element_rect(colour = NA, fill = NA),
+                plot.background = element_rect(colour = NA, fill = NA),
                 panel.border = element_rect(colour = NA),
                 axis.title = element_text(face = "bold",size = rel(1)),
                 axis.title.y = element_text(angle=90,vjust =2),
@@ -40,35 +40,6 @@ theme_composition <- function(base_size=14, base_family="sans") {
         ))
     
 }
-
-theme_Publication <- function(base_size=14, base_family="sans") {
-    library(grid)
-    library(ggthemes)
-    library(stringr)
-    (theme_foundation(base_size=base_size, base_family=base_family)
-        + theme(plot.title = element_text(face = "bold",
-                                          size = rel(0.8), hjust = 0.5),
-                text = element_text(),
-                panel.background = element_rect(colour = NA),
-                plot.background = element_rect(colour = NA),
-                panel.border = element_rect(colour = NA),
-                axis.title = element_text(face = "bold",size = rel(0.8)),
-                axis.title.y = element_text(angle=90,vjust =2),
-                axis.title.x = element_text(vjust = -0.2),
-                axis.text = element_text(), 
-                axis.line = element_line(colour="black"),
-                axis.ticks = element_line(),
-                panel.grid.major = element_line(colour="#f0f0f0"),
-                panel.grid.minor = element_blank(),
-                legend.key = element_rect(colour = NA),
-                legend.position = "bottom",
-                legend.key.size= unit(0.2, "cm"),
-                legend.spacing  = unit(0, "cm"),
-                plot.margin=unit(c(10,5,5,5),"mm"),
-                strip.background=element_rect(colour="#f0f0f0",fill="#f0f0f0"),
-                strip.text = element_text(face="bold")
-        ))
-} 
 
 # Data
 mb <- readRDS("data/microbiome/microbiome_run1.RDS")
@@ -123,7 +94,7 @@ set.seed(1234)
     scale_fill_manual(values = rev(c(sample(cols(20)), 
         "grey90")), labels = lev) +
     guides(fill = guide_legend(ncol = 1)) +
-    labs(y="Composition (relative abundances)", x = "", 
+    labs(y="Relative abundance (%)", x = "", 
         title = "Microbiota composition", fill = "") +
     scale_y_continuous(expand = c(0, 0)) +
     facet_grid(Sex~Genotype) +
@@ -186,7 +157,7 @@ set.seed(1234)
     scale_fill_manual(values = rev(c(sample(cols(20)), 
         "grey90")), labels = lev) +
     guides(fill = guide_legend(ncol = 1)) +
-    labs(y="Composition (relative abundances)", x = "", 
+    labs(y="Relative abundance (%)", x = "", 
         title = "Microbiota composition", fill = "") +
     scale_y_continuous(expand = c(0, 0)) +
     facet_grid(Sex~Genotype) +

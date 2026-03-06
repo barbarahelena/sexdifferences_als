@@ -20,6 +20,8 @@ presentations/
 scripts/archive/
 .gitignore
 packages/
+scripts/.DS_Store
+.DS_Store
 
 # History files
 .Rhistory

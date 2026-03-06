@@ -8,6 +8,9 @@ library(ggpubr)
 library(rio)
 library(vegan)
 library(ggrepel)
+library(lme4)
+library(lmerTest)
+library(emmeans)
 
 # Theme
 theme_Publication <- function(base_size=12, base_family="sans") {
@@ -40,6 +43,13 @@ theme_Publication <- function(base_size=12, base_family="sans") {
         ))
 }
 
+# CLR (centred log-ratio) transformation: log(x / geometric_mean(x)) per sample
+clr_transform <- function(mat, pseudocount = 0.5) {
+  mat <- as.matrix(mat) + pseudocount
+  log_mat <- log(mat)
+  sweep(log_mat, 1, rowMeans(log_mat), "-")
+}
+
 res_dir <- "results/microbiome/cazymes"
 dir.create(res_dir, showWarnings = FALSE, recursive = TRUE)
 
@@ -51,6 +61,8 @@ stat <- rio::import("data/microbiome/sample_statistics.tsv")
 head(cayman)[1:5,1:5]
 rownames(cayman) <- cayman$family
 cayman$family <- NULL
+cayman[is.na(cayman)] <- 0
+cayman <- log10(cayman + 1)
 cayman <- as.data.frame(t(as.matrix(cayman)))
 names(cayman)
 dim(cayman)
@@ -71,40 +83,19 @@ df_tot <- cayman |>
   filter(Age_ints >= 6 & Age_ints <= 18)
 message(nrow(df_tot), " samples after filtering")
 
+# Set reference levels so LMM coefficients are named GenotypeTDP43 and SexMale
+df_tot$Genotype <- relevel(factor(df_tot$Genotype), ref = "WT")
+df_tot$Sex      <- relevel(factor(df_tot$Sex),      ref = "Female")
+
 # Check sample counts per group
 print(table(interaction(df_tot$Sex, df_tot$Genotype), df_tot$Age_ints))
-
-# Filter CAZyme families: present in >=30% of samples AND mean CPM > 20
-prevalence <- colMeans(df_tot[, gene_families] > 0)
-mean_abundance <- colMeans(df_tot[, gene_families])
-gene_families <- gene_families[prevalence >= 0.30 & mean_abundance > 20]
-message(length(gene_families), " CAZyme families retained after filtering")
-
-# Timepoints for analyses (6, 8, 10, 12, 14, 16, 18 weeks)
-timepoints <- c(6, 8, 10, 12, 14, 16, 18)
-timepoints <- timepoints[timepoints %in% unique(df_tot$Age_ints)]
-message("Timepoints: ", paste(timepoints, collapse = ", "))
-
-# Determine which timepoints have enough samples for sex comparisons (min 3 per sex)
-# within each genotype
-min_per_group <- 3
-tp_sufficient_tdp <- c()
-tp_sufficient_wt <- c()
-for (tp in timepoints) {
-  counts_tdp <- df_tot |> filter(Genotype == "TDP43" & Age_ints == tp) |> count(Sex)
-  if (all(counts_tdp$n >= min_per_group)) tp_sufficient_tdp <- c(tp_sufficient_tdp, tp)
-  counts_wt <- df_tot |> filter(Genotype == "WT" & Age_ints == tp) |> count(Sex)
-  if (all(counts_wt$n >= min_per_group)) tp_sufficient_wt <- c(tp_sufficient_wt, tp)
-}
-message("TDP43 timepoints with >= ", min_per_group, " per sex: ", paste(tp_sufficient_tdp, collapse = ", "))
-message("WT timepoints with >= ", min_per_group, " per sex: ", paste(tp_sufficient_wt, collapse = ", "))
 
 # ============================================================================
 # 1a. BRAY-CURTIS PCoA PLOTS PER TIMEPOINT - Genotype (TDP43 vs WT)
 # ============================================================================
 
 ## --- PCoA on all mice, faceted by timepoint ---
-caz_mat_all <- log10(df_tot[, gene_families] + 1)
+caz_mat_all <- as.matrix(df_tot[, gene_families])
 rownames(caz_mat_all) <- df_tot$sampleID
 
 bray_all <- vegan::vegdist(caz_mat_all, method = "bray")
@@ -119,7 +110,7 @@ dbray_all <- left_join(dbray_all, df_tot |> select(sampleID, Sex, Genotype, Age_
 bray_per_tp_genotype <- function(tp) {
   set.seed(14)
   dfsel <- df_tot |> filter(Age_ints == tp)
-  mat <- log10(dfsel[, gene_families] + 1)
+  mat <- as.matrix(dfsel[, gene_families])
   rownames(mat) <- dfsel$sampleID
   bray <- vegan::vegdist(mat, method = "bray")
   res <- adonis2(bray ~ Genotype, data = dfsel)
@@ -152,167 +143,116 @@ dbray_all_filt <- dbray_all |> filter(Age_ints %in% timepoints)
 ggsave(file.path(res_dir, "PCoA_BrayCurtis_genotype.pdf"), braycurt_geno, width = 14, height = 8)
 
 # ============================================================================
-# 1b. BRAY-CURTIS PCoA PLOTS PER TIMEPOINT - Sex differences
+# Line plots for GH78 and GH106
 # ============================================================================
 
-## --- Bray-Curtis in TDP43 mice per timepoint ---
-dfsel_tdp <- df_tot |> filter(Genotype == "TDP43" & Age_ints %in% tp_sufficient_tdp)
-caz_mat_tdp <- dfsel_tdp[, gene_families]
-caz_mat_tdp <- log10(caz_mat_tdp + 1)
-rownames(caz_mat_tdp) <- dfsel_tdp$sampleID
+# Filter CAZyme families: present in >=30% of samples AND mean CPM > 20
+prevalence <- colMeans(df_tot[, gene_families] > 0)
+gene_families <- gene_families[prevalence >= 0.30]
+message(length(gene_families), " CAZyme families retained after filtering")
 
-bray_tdp <- vegan::vegdist(caz_mat_tdp, method = "bray")
-pcoord_tdp <- ape::pcoa(bray_tdp, correction = "cailliez")
-expl_variance_tdp <- pcoord_tdp$values$Rel_corr_eig * 100
+# Precompute CLR-transformed matrix once (samples x gene_families)
+clr_mat <- clr_transform(df_tot[, gene_families])
+rownames(clr_mat) <- df_tot$sampleID
 
-dbray_tdp <- as.data.frame(pcoord_tdp$vectors[, c("Axis.1", "Axis.2")])
-dbray_tdp$sampleID <- rownames(dbray_tdp)
-dbray_tdp <- left_join(dbray_tdp, dfsel_tdp |> select(sampleID, Sex, Age_weeks, Age_ints), by = "sampleID")
+## --- Line plots over time for GH78 and GH106: LMM with Age as factor + emmeans ---
+# Age as a factor: no linearity assumption; emmeans gives per-timepoint FDR-corrected contrasts
+df_tot$Age_fac <- factor(df_tot$Age_ints)
 
-# PERMANOVA per timepoint
-bray_per_tp_tdp <- function(tp) {
-  set.seed(14)
-  dfsel <- dfsel_tdp |> filter(Age_ints == tp)
-  mat <- log10(dfsel[, gene_families] + 1)
-  rownames(mat) <- dfsel$sampleID
-  bray <- vegan::vegdist(mat, method = "bray")
-  res <- adonis2(bray ~ Sex, data = dfsel)
-  return(res$`Pr(>F)`[1])
-}
+line_plist_geno <- list()
+line_plist_sex  <- list()
+lmm_anova_results    <- list()
+lmm_contrast_results <- list()
+gene_families2 <- c("GH78", "GH106")
 
-res_tdp <- data.frame(
-  pvalue = sapply(tp_sufficient_tdp, bray_per_tp_tdp),
-  Age_ints = tp_sufficient_tdp
-) |> left_join(df_tot |> distinct(Age_ints, Age_weeks), by = "Age_ints")
-res_tdp$Age_weeks <- factor(res_tdp$Age_weeks, levels = sort(unique(res_tdp$Age_weeks)))
+for (i in seq_along(gene_families2)) {
+  gf <- gene_families2[i]
+  df_tot$cazy_val <- clr_mat[df_tot$sampleID, gf]
+  df_tot <- df_tot |> filter(Age_ints %in% tp_sufficient_tdp)
 
-dbray_tdp$Age_weeks <- factor(dbray_tdp$Age_weeks, levels = levels(res_tdp$Age_weeks))
-
-(braycurt_tdp <- ggplot(dbray_tdp, aes(Axis.1, Axis.2)) +
-    geom_point(aes(color = Sex), size = 2, alpha = 0.7) +
-    xlab(paste0("PCo1 (", round(expl_variance_tdp[1], 1), "%)")) +
-    ylab(paste0("PCo2 (", round(expl_variance_tdp[2], 1), "%)")) +
-    scale_color_manual(values = pal_nejm()(2)) +
-    scale_fill_manual(values = pal_nejm()(2), guide = "none") +
-    theme_Publication() +
-    labs(color = "", fill = "", title = "CAZyme PCoA Bray-Curtis: TDP43") +
-    stat_ellipse(geom = "polygon", aes(color = Sex, fill = Sex), type = "norm",
-                 alpha = 0.1, linewidth = 1.0) +
-    theme(legend.position = "top") +
-    geom_text(data = res_tdp, aes(x = Inf, y = Inf, label = paste0("p = ", round(pvalue, 3))),
-              hjust = 1.1, vjust = 1.1, size = 3, inherit.aes = FALSE) +
-    facet_wrap(~ Age_weeks))
-ggsave(file.path(res_dir, "PCoA_BrayCurtis_TDP43_sex.pdf"), braycurt_tdp, width = 14, height = 8)
-
-## --- Bray-Curtis in WT mice per timepoint ---
-dfsel_wt <- df_tot |> filter(Genotype == "WT" & Age_ints %in% tp_sufficient_wt)
-caz_mat_wt <- dfsel_wt[, gene_families]
-caz_mat_wt <- log10(caz_mat_wt + 1)
-rownames(caz_mat_wt) <- dfsel_wt$sampleID
-
-bray_wt <- vegan::vegdist(caz_mat_wt, method = "bray")
-pcoord_wt <- ape::pcoa(bray_wt, correction = "cailliez")
-expl_variance_wt <- pcoord_wt$values$Rel_corr_eig * 100
-
-dbray_wt <- as.data.frame(pcoord_wt$vectors[, c("Axis.1", "Axis.2")])
-dbray_wt$sampleID <- rownames(dbray_wt)
-dbray_wt <- left_join(dbray_wt, dfsel_wt |> select(sampleID, Sex, Age_weeks, Age_ints), by = "sampleID")
-
-bray_per_tp_wt <- function(tp) {
-  set.seed(14)
-  dfsel <- dfsel_wt |> filter(Age_ints == tp)
-  mat <- log10(dfsel[, gene_families] + 1)
-  rownames(mat) <- dfsel$sampleID
-  bray <- vegan::vegdist(mat, method = "bray")
-  res <- adonis2(bray ~ Sex, data = dfsel)
-  return(res$`Pr(>F)`[1])
-}
-
-res_wt <- data.frame(
-  pvalue = sapply(tp_sufficient_wt, bray_per_tp_wt),
-  Age_ints = tp_sufficient_wt
-) |> left_join(df_tot |> distinct(Age_ints, Age_weeks), by = "Age_ints")
-res_wt$Age_weeks <- factor(res_wt$Age_weeks, levels = sort(unique(res_wt$Age_weeks)))
-
-dbray_wt$Age_weeks <- factor(dbray_wt$Age_weeks, levels = levels(res_wt$Age_weeks))
-
-(braycurt_wt <- ggplot(dbray_wt, aes(Axis.1, Axis.2)) +
-    geom_point(aes(color = Sex), size = 2, alpha = 0.7) +
-    xlab(paste0("PCo1 (", round(expl_variance_wt[1], 1), "%)")) +
-    ylab(paste0("PCo2 (", round(expl_variance_wt[2], 1), "%)")) +
-    scale_color_manual(values = pal_nejm()(2)) +
-    scale_fill_manual(values = pal_nejm()(2), guide = "none") +
-    theme_Publication() +
-    labs(color = "", fill = "", title = "CAZyme PCoA Bray-Curtis: WT") +
-    stat_ellipse(geom = "polygon", aes(color = Sex, fill = Sex), type = "norm",
-                 alpha = 0.1, linewidth = 1.0) +
-    theme(legend.position = "top") +
-    geom_text(data = res_wt, aes(x = Inf, y = Inf, label = paste0("p = ", round(pvalue, 3))),
-              hjust = 1.1, vjust = 1.1, size = 3, inherit.aes = FALSE) +
-    facet_wrap(~ Age_weeks))
-ggsave(file.path(res_dir, "PCoA_BrayCurtis_WT_sex.pdf"), braycurt_wt, width = 14, height = 8)
-
-# ============================================================================
-# 2. GH78 AND GH106 BOXPLOTS AND LINE PLOTS OVER TIME
-# ============================================================================
-
-families_of_interest <- c("GH78", "GH106")
-families_present <- families_of_interest[families_of_interest %in% names(df_tot)]
-families_missing <- setdiff(families_of_interest, families_present)
-if (length(families_missing) > 0) message("CAZy families not found: ", paste(families_missing, collapse = ", "))
-
-## --- Boxplots per timepoint and genotype, sex-stratified ---
-for (i in seq_along(families_present)) {
-  gf <- families_present[i]
-  df_tot$cazy_val <- log10(df_tot[[gf]] + 1)
-
-  # Faceted plot: Age_weeks (columns) x Genotype (rows)
-  pl <- ggplot(df_tot, aes(x = Sex, y = cazy_val)) +
-    geom_boxplot(aes(fill = Sex), outlier.shape = NA, width = 0.4) +
-    geom_jitter(width = 0.2, alpha = 0.5, height = 0) +
-    scale_fill_manual(values = pal_nejm()(2), guide = "none") +
-    labs(title = gf, y = "log10(CPM + 1)", x = "") +
-    stat_compare_means(method = "wilcox.test", label = "p.format", size = 2.5) +
-    facet_grid(Genotype ~ Age_weeks) +
-    theme_Publication() +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1),
-          legend.position = "none")
-
-  ggsave(file.path(res_dir, paste0(gf, "_boxplots_per_timepoint.pdf")), pl,
-         width = 2.5 * length(timepoints), height = 8)
-}
-
-## --- Line plots over time for GH78 and GH106 (like 2_7 TCAM lineplots) ---
-line_plist <- list()
-for (i in seq_along(families_present)) {
-  gf <- families_present[i]
-  df_tot$cazy_val <- log10(df_tot[[gf]] + 1)
-
-  # Genotype line plot
+  # ---- Genotype model: Genotype * Age_fac + (1 | MouseID) ----
   means_geno <- df_tot |>
     group_by(Genotype, Age_ints) |>
     summarise(mean = mean(cazy_val, na.rm = TRUE),
               se = sd(cazy_val, na.rm = TRUE) / sqrt(n()), .groups = "drop")
+
+  lmm_geno <- tryCatch(
+    lmerTest::lmer(cazy_val ~ Genotype * Age_fac + (1 | MouseID), data = df_tot, REML = FALSE),
+    error = function(e) NULL
+  )
+  if (!is.null(lmm_geno)) {
+    anova_geno <- anova(lmm_geno)
+    emm_geno   <- emmeans(lmm_geno, ~ Genotype | Age_fac)
+    contr_geno <- as.data.frame(contrast(emm_geno, method = "pairwise", adjust = "fdr"))
+    contr_geno$Age_ints <- as.integer(as.character(contr_geno$Age_fac))
+    contr_geno$sig <- case_when(
+      contr_geno$p.value < 0.001 ~ "***",
+      contr_geno$p.value < 0.01  ~ "**",
+      contr_geno$p.value < 0.05  ~ "*",
+      TRUE ~ "ns"
+    )
+    y_fixed_geno <- max(means_geno$mean + means_geno$se, na.rm = TRUE) + 0.15
+    contr_geno$y_pos <- y_fixed_geno
+    lmm_anova_results[[paste0(gf, "_genotype")]] <- data.frame(
+      anova_geno, term = rownames(anova_geno), model = paste0(gf, "_genotype")
+    )
+    lmm_contrast_results[[paste0(gf, "_genotype")]] <- data.frame(
+      contr_geno, model = paste0(gf, "_genotype")
+    )
+  } else {
+    contr_geno <- NULL
+  }
 
   pl_geno <- ggplot(means_geno, aes(x = Age_ints, y = mean, group = Genotype, color = Genotype)) +
     geom_line() +
     geom_point(size = 1) +
     geom_jitter(data = df_tot, aes(x = Age_ints, y = cazy_val, color = Genotype),
                 width = 0.2, alpha = 0.5, inherit.aes = FALSE) +
-    scale_color_manual(values = pal_nejm()(8)[c(3, 6)]) +
+    scale_color_manual(values = pal_nejm()(8)[c(6, 3)]) +
     geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.3) +
-    labs(title = paste0(gf, ": TDP43 vs WT"), x = "Age (weeks)", y = "log10(CPM + 1)") +
+    labs(title = gf, x = "Age (weeks)", y = "CLR(CPM)") +
     scale_x_continuous(breaks = timepoints) +
     theme_Publication()
+  if (!is.null(contr_geno)) {
+    pl_geno <- pl_geno +
+      geom_text(data = contr_geno |> filter(sig != "ns"), aes(x = Age_ints, y = y_pos, label = sig),
+                inherit.aes = FALSE, size = 6, vjust = 0)
+  }
+  line_plist_geno[[length(line_plist_geno) + 1]] <- pl_geno
 
-  line_plist[[length(line_plist) + 1]] <- pl_geno
-
-  # Sex line plot within TDP43
-  df_tdp <- df_tot |> filter(Genotype == "TDP43")
+  # ---- Sex model within TDP43: Sex * Age_fac + (1 | MouseID) ----
+  df_tdp <- df_tot |> filter(Genotype == "TDP43" & Age_ints %in% tp_sufficient_tdp)
   means_sex <- df_tdp |>
     group_by(Sex, Age_ints) |>
     summarise(mean = mean(cazy_val, na.rm = TRUE),
               se = sd(cazy_val, na.rm = TRUE) / sqrt(n()), .groups = "drop")
+
+  lmm_sex <- tryCatch(
+    lmerTest::lmer(cazy_val ~ Sex * Age_fac + (1 | MouseID), data = df_tdp, REML = FALSE),
+    error = function(e) NULL
+  )
+  if (!is.null(lmm_sex)) {
+    anova_sex <- anova(lmm_sex)
+    emm_sex   <- emmeans(lmm_sex, ~ Sex | Age_fac)
+    contr_sex <- as.data.frame(contrast(emm_sex, method = "pairwise", adjust = "fdr"))
+    contr_sex$Age_ints <- as.integer(as.character(contr_sex$Age_fac))
+    contr_sex$sig <- case_when(
+      contr_sex$p.value < 0.001 ~ "***",
+      contr_sex$p.value < 0.01  ~ "**",
+      contr_sex$p.value < 0.05  ~ "*",
+      TRUE ~ "ns"
+    )
+    y_fixed_sex <- max(means_sex$mean + means_sex$se, na.rm = TRUE) + 0.05
+    contr_sex$y_pos <- y_fixed_sex
+    lmm_anova_results[[paste0(gf, "_sex_TDP43")]] <- data.frame(
+      anova_sex, term = rownames(anova_sex), model = paste0(gf, "_sex_TDP43")
+    )
+    lmm_contrast_results[[paste0(gf, "_sex_TDP43")]] <- data.frame(
+      contr_sex, model = paste0(gf, "_sex_TDP43")
+    )
+  } else {
+    contr_sex <- NULL
+  }
 
   pl_sex <- ggplot(means_sex, aes(x = Age_ints, y = mean, group = Sex, color = Sex)) +
     geom_line() +
@@ -321,26 +261,44 @@ for (i in seq_along(families_present)) {
                 width = 0.2, alpha = 0.5, inherit.aes = FALSE) +
     scale_color_nejm() +
     geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.3) +
-    labs(title = paste0(gf, ": sex diff in TDP43"), x = "Age (weeks)", y = "log10(CPM + 1)") +
+    labs(title = gf, x = "Age (weeks)", y = "CLR(CPM)") +
     scale_x_continuous(breaks = timepoints) +
     theme_Publication()
-
-  line_plist[[length(line_plist) + 1]] <- pl_sex
+  if (!is.null(contr_sex)) {
+    pl_sex <- pl_sex +
+      geom_text(data = contr_sex |> filter(sig != "ns"), aes(x = Age_ints, y = y_pos, label = sig),
+                inherit.aes = FALSE, size = 6, vjust = 0)
+  }
+  line_plist_sex[[length(line_plist_sex) + 1]] <- pl_sex
 }
 
-(line_plots <- ggarrange(plotlist = line_plist, ncol = 2, nrow = 2,
-                          labels = LETTERS[1:length(line_plist)], common.legend = FALSE))
-ggsave(file.path(res_dir, "GH78_GH106_lineplots.pdf"), line_plots, width = 12, height = 10)
+# Genotype: two panels (A = GH78, B = GH106), shared legend
+line_plots_geno <- ggarrange(plotlist = line_plist_geno, ncol = 2, nrow = 1,
+                              labels = c("A", "B"), common.legend = TRUE, legend = "bottom")
+line_plots_geno <- annotate_figure(line_plots_geno,
+                                    top = text_grob("TDP43 vs WT", face = "bold", size = 14))
+ggsave(file.path(res_dir, "GH78_GH106_lineplots_genotype.pdf"), line_plots_geno, width = 12, height = 6)
 
-## --- Interaction model: GH78 ~ Genotype * Sex ---
-df_tot$GH78_log <- log10(df_tot$GH78 + 1)
-model_gh78 <- lm(GH78_log ~ Genotype * Sex, data = df_tot)
+# Sex: two panels (A = GH78, B = GH106), shared legend
+line_plots_sex <- ggarrange(plotlist = line_plist_sex, ncol = 2, nrow = 1,
+                             labels = c("A", "B"), common.legend = TRUE, legend = "bottom")
+line_plots_sex <- annotate_figure(line_plots_sex,
+                                   top = text_grob("TDP43: males vs females", face = "bold", size = 14))
+ggsave(file.path(res_dir, "GH78_GH106_lineplots_sex.pdf"), line_plots_sex, width = 12, height = 6)
+
+# Save LMM results: F-tests and per-timepoint contrasts separately
+write.csv2(bind_rows(lmm_anova_results),    file.path(res_dir, "lmm_GH78_GH106_anova.csv"),     row.names = FALSE)
+write.csv2(bind_rows(lmm_contrast_results), file.path(res_dir, "lmm_GH78_GH106_contrasts.csv"), row.names = FALSE)
+
+## --- LMM: GH78 ~ Genotype * Sex + Age_fac + (1 | MouseID) ---
+df_tot$GH78_log <- clr_mat[df_tot$sampleID, "GH78"]
+model_gh78 <- lmerTest::lmer(GH78_log ~ Genotype * Sex + Age_fac + (1 | MouseID), data = df_tot, REML = FALSE)
 summary(model_gh78)
 confint(model_gh78)
 
-## --- Interaction model: GH106 ~ Genotype * Sex ---
-df_tot$GH106_log <- log10(df_tot$GH106 + 1)
-model_gh106 <- lm(GH106_log ~ Genotype * Sex, data = df_tot)
+## --- LMM: GH106 ~ Genotype * Sex + Age_fac + (1 | MouseID) ---
+df_tot$GH106_log <- clr_mat[df_tot$sampleID, "GH106"]
+model_gh106 <- lmerTest::lmer(GH106_log ~ Genotype * Sex + Age_fac + (1 | MouseID), data = df_tot, REML = FALSE)
 summary(model_gh106)
 confint(model_gh106)
 
@@ -357,7 +315,7 @@ for (tp in timepoints) {
 
   statres <- data.frame()
   for (gf in gene_families) {
-    df_tp$mb <- log10(df_tp[[gf]] + 1)
+    df_tp$mb <- clr_mat[df_tp$sampleID, gf]
     tryCatch({
       model <- lm(mb ~ Genotype, data = df_tp)
       res <- summary(model)
@@ -439,7 +397,7 @@ for (tp in tp_sufficient_tdp) {
 
   statres <- data.frame()
   for (gf in gene_families) {
-    df_tp$mb <- log10(df_tp[[gf]] + 1)
+    df_tp$mb <- clr_mat[df_tp$sampleID, gf]
     tryCatch({
       model <- lm(mb ~ Sex, data = df_tp)
       res <- summary(model)
@@ -522,7 +480,7 @@ if (nrow(sig_geno) > 0) {
 
     bp_list <- list()
     for (gf in sig_fams) {
-      df_tp$cazy_val <- log10(df_tp[[gf]] + 1)
+      df_tp$cazy_val <- clr_mat[df_tp$sampleID, gf]
 
       p_fem <- tryCatch(
         format.pval(wilcox.test(cazy_val ~ Genotype, data = df_tp |> filter(Sex == "Female"))$p.value, digits = 2),
@@ -537,7 +495,7 @@ if (nrow(sig_geno) > 0) {
         geom_jitter(width = 0.2, alpha = 0.5, height = 0) +
         scale_fill_manual(values = pal_nejm()(2), guide = "none") +
         stat_compare_means(method = "wilcox.test", label = "p.format", size = 3) +
-        labs(title = gf, caption = caption_text, y = "log10(CPM + 1)", x = "") +
+        labs(title = gf, caption = caption_text, y = "CLR(CPM)", x = "") +
         facet_wrap(~ Genotype) +
         theme_Publication() +
         theme(plot.caption = element_text(size = 8), legend.position = "none")
@@ -577,7 +535,7 @@ if (nrow(sig_sex) > 0) {
 
     bp_list <- list()
     for (gf in sig_fams) {
-      df_tp$cazy_val <- log10(df_tp[[gf]] + 1)
+      df_tp$cazy_val <- clr_mat[df_tp$sampleID, gf]
 
       p_fem <- tryCatch(
         format.pval(wilcox.test(cazy_val ~ Genotype, data = df_tp |> filter(Sex == "Female"))$p.value, digits = 2),
@@ -592,7 +550,7 @@ if (nrow(sig_sex) > 0) {
         geom_jitter(width = 0.2, alpha = 0.5, height = 0) +
         scale_fill_manual(values = pal_nejm()(2), guide = "none") +
         stat_compare_means(method = "wilcox.test", label = "p.format", size = 3) +
-        labs(title = gf, caption = caption_text, y = "log10(CPM + 1)", x = "") +
+        labs(title = gf, caption = caption_text, y = "CLR(CPM)", x = "") +
         facet_wrap(~ Genotype) +
         theme_Publication() +
         theme(plot.caption = element_text(size = 8), legend.position = "none")
@@ -610,10 +568,11 @@ if (nrow(sig_sex) > 0) {
       n_cols_bp <- min(3, n_bp)
       n_rows_bp <- ceiling(n_bp / n_cols_bp)
       suffix <- if (n_pages > 1) paste0("_p", pg) else ""
-      (bp_combined <- ggarrange(plotlist = bp_page, labels = LETTERS[idx],
+      (bp_combined <- ggarrange(plotlist = bp_page,
                                  nrow = n_rows_bp, ncol = n_cols_bp))
       ggsave(file.path(res_dir, paste0("boxplots_sig_sexdiff_TDP43_", tp_int, "wk", suffix, ".pdf")),
              bp_combined, width = 4 * n_cols_bp, height = 4 * n_rows_bp)
     }
   }
 }
+
