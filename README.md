@@ -1,11 +1,13 @@
-# Gut Microbiota and Metabolome Analysis in TDP43 Mice
+# Gut Microbiota and Metabolome Analysis in human ALS and TDP43 Mice
 
 ## Introduction
-In this project, we investigated the role of the gut microbiota and metabolome in driving sexual dimorphism in ALS-linked TDP43 mice. Using shotgun metagenomics and semi-targeted metabolomics, we analyzed the microbiome and metabolome profiles of WT and TDP43 mice over time, focusing on genotype and sex differences. The repository also includes scripts for the validation human ALS cohort (Calgary cohort). Scripts that are no longer part of the main analysis are stored in `scripts/archive/`.
+
+In this project, we investigated the role of the gut microbiota and metabolome in driving sexual dimorphism in ALS-linked TDP43 mice. Using shotgun metagenomics and semi-targeted metabolomics, we analyzed the microbiome and metabolome profiles of WT and TDP43 mice over time, focusing on genotype and sex differences. The repository also includes scripts for the analyses in a human ALS cohort (Calgary cohort). Scripts that are no longer part of the main analysis are stored in `scripts/archive/`.
 
 ## Repository Structure
 
-#### Chapter 1: Human Cohort 2 (Calgary ALS Cohort)
+#### Chapter 1: Human Cohort (Calgary ALS Cohort)
+
 1. **`1_1_clean_humancohort2.R`**
    - Cleans and processes metadata for the Calgary human ALS cohort.
    - Outputs: `data/human_cohort2/metadata.RDS`.
@@ -35,6 +37,7 @@ In this project, we investigated the role of the gut microbiota and metabolome i
    - Outputs: `results/humancohort2/assembled_figure.pdf`.
 
 #### Chapter 2: Mouse Microbiome Analysis
+
 1. **`2_1_clean_microbiome.R`**
    - Cleans and processes microbiome data from TDP43 mouse experiments.
    - Outputs: `data/microbiome_filtered_run1.RDS`, `data/microbiome_filtered_run2.RDS`.
@@ -58,6 +61,7 @@ In this project, we investigated the role of the gut microbiota and metabolome i
    - Outputs: TCAM plots, PERMANOVA results.
 
 #### Chapter 3: Mouse Pathway and CAZyme Analysis
+
 1. **`3_1_clean_pathways.R`**
    - Cleans and processes HUMAnN pathway abundance data.
    - Outputs: `data/pathways.RDS`, `data/pathwaykeys.RDS`.
@@ -69,6 +73,7 @@ In this project, we investigated the role of the gut microbiota and metabolome i
    - Outputs: CAZyme abundance plots and statistics.
 
 #### Chapter 4: Mouse Metabolomics Analysis
+
 1. **`4_1_clean_metabolomics.R`**
    - Cleans and processes metabolomics data.
    - Outputs: `data/metabolomics.RDS`, `data/metabolomics_hmdb.csv`.
@@ -86,17 +91,20 @@ In this project, we investigated the role of the gut microbiota and metabolome i
    - Outputs: Combined multi-panel figure.
 
 #### Chapter 5: ENA Submission
+
 1. **`5_1_ena_checksum.sh`**
    - Computes MD5 checksums for raw FASTQ files prior to ENA upload.
 2. **`5_2_ena_submission.R`**
    - Prepares submission metadata for upload to the European Nucleotide Archive (ENA).
 
 #### Pipeline Scripts
+
 - **`run_pipeline.sh`** — Runs the metagenomics processing pipeline (Nextflow) for TDP43 mouse samples.
 - **`run_pipeline_human.sh`** — Runs the metagenomics processing pipeline for the human ALS cohort.
 - **`check_metagenomic_ids.sh`** — Checks and lists unique sample IDs in the metagenomic data subset.
 
 ### Outputs
+
 - **Human Cohort 2**: Table 1, compositional plots, beta diversity PCoA plots, LinDA volcano plots, pathway correlation heatmap, CAZyme plots, assembled figure.
 - **Microbiome Analysis**: Compositional plots, alpha/beta diversity plots, TCAM scatterplots and loadings.
 - **Pathway Analysis**: Correlation heatmaps, pathway boxplots, CAZyme plots.
@@ -104,7 +112,9 @@ In this project, we investigated the role of the gut microbiota and metabolome i
 - **Statistical Results**: PERMANOVA results, LinDA results, LMM results.
 
 ## Requirements
+
 ### Environment
+
 Dependencies are managed with [pixi](https://pixi.sh). To set up the environment:
 
 ```bash
@@ -114,6 +124,7 @@ pixi install
 This installs all R and Python dependencies defined in `pixi.toml`.
 
 ### R Packages (key)
+
 - `tidyverse`, `ggplot2`, `ggpubr`, `ggrepel`, `ggthemes`, `ggsci`
 - `ComplexHeatmap`, `circlize`
 - `vegan`, `ape`, `MicrobiomeStat`
@@ -122,13 +133,16 @@ This installs all R and Python dependencies defined in `pixi.toml`.
 - `rstatix`, `gridExtra`
 
 ### Python Packages (key)
+
 - `numpy`, `pandas`, `scipy`
 - `matplotlib`, `seaborn`
 - `mprod` (for TCAM analysis)
 
 ## Code Availability
+
 All scripts and workflows are available in this repository.
 The metagenomics processing workflow is available at: [https://github.com/barbarahelena/metagenomicspipeline](https://github.com/barbarahelena/metagenomicspipeline).
 
 ## Data Availability
+
 The raw metagenomics sequencing data is deposited in the European Nucleotide Archive (ENA) under accession number [PRJEB86491](https://www.ebi.ac.uk/ena/browser/view/PRJEB86491).
