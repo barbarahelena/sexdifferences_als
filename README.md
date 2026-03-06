@@ -108,10 +108,10 @@ In this project, we investigated the role of the gut microbiota and metabolome i
 Dependencies are managed with [pixi](https://pixi.sh). To set up the environment:
 
 ```bash
-bash setup_pixi.sh
+pixi install
 ```
 
-This installs all R and Python dependencies defined in `pixi.toml`, plus additional Bioconductor packages (TreeSummarizedExperiment, mia, phyloseq, microbiome).
+This installs all R and Python dependencies defined in `pixi.toml`.
 
 ### R Packages (key)
 - `tidyverse`, `ggplot2`, `ggpubr`, `ggrepel`, `ggthemes`, `ggsci`
