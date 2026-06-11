@@ -44,9 +44,9 @@ theme_Publication <- function(base_size=12, base_family="sans") {
 
 res_dir <- "results/humancohort2"
 
-stat <- rio::import("data/human_cohort2/cayman_sample_statistics.tsv") |> 
+stat <- readRDS("data/human_cohort2/cayman_sample_statistics.RDS") |>
     mutate(Group = case_when(str_detect(sample, "AP") ~ "ALS", .default = "Control"))
-cayman <- rio::import("data/human_cohort2/cayman_families_cpm_table.tsv")
+cayman <- readRDS("data/human_cohort2/cayman_families_merged.RDS")
 head(cayman)[1:5,1:5]
 rownames(cayman) <- cayman$family
 cayman$family <- NULL

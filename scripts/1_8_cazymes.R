@@ -45,7 +45,7 @@ theme_Publication <- function(base_size=12, base_family="sans") {
 res_dir <- "results/humancohort2"
 
 # Data
-cayman <- rio::import("data/human_cohort2/cayman_families_cpm_table.tsv")
+cayman <- readRDS("data/human_cohort2/cayman_families_merged.RDS")
 head(cayman)[1:5,1:5]
 rownames(cayman) <- cayman$family
 cayman$family <- NULL
@@ -126,7 +126,7 @@ res_ctrl <- as.data.frame(res_ctrl)
 
 pl_caz2 <- pl_caz2 + annotate("text", x = Inf, y = Inf,
                     label = paste0("Sex: p = ", round(res_ctrl$`Pr(>F)`[1], 3), ", R\u00b2 = ", round(res_ctrl$R2[1], 3)),
-                    hjust = 1.1, vjust = 1.1, size = 3)
+                    hjust = 1.1, vjust = 1.1, size = 5)
 pl_caz2
 pca_combined <- ggarrange(pl_caz1, pl_caz2, nrow = 1, labels = LETTERS[1:2], common.legend = TRUE, legend = "bottom")
 ggsave(file.path(res_dir, "cayman_PCoA_BrayCurtis.pdf"), plot = pca_combined, width = 12, height = 6)
@@ -183,5 +183,5 @@ for (i in seq_along(families_present)) {
 (plots_cazy <- ggarrange(plotlist = list(plist[[1]], plist[[2]]), common.legend = TRUE, legend = "bottom",
                          labels = LETTERS[1:2],
                          nrow = 1, ncol = 2))
-ggsave(file.path(res_dir, "cayman_families_of_interest_boxplots.pdf"), plots_cazy_small,
+ggsave(file.path(res_dir, "cayman_families_of_interest_boxplots.pdf"), plots_cazy,
        width = 8, height = 5)
