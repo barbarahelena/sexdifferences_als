@@ -71,7 +71,7 @@ ggsave(plshan, filename = "results/humancohort2/alphadiversity.pdf", width = 6, 
 # Beta diversity in ALS
 dfals <- df |> filter(Group == "ALS")
 mb2 <- mb[which(rownames(mb) %in% dfals$ID),]
-bray <- vegan::vegdist(mb, method = 'bray')
+bray <- vegan::vegdist(mb2, method = 'bray')
 pcoord <- ape::pcoa(bray, correction = "cailliez")
 str(pcoord$values)
 expl_variance_bray <- pcoord$values$Rel_corr_eig * 100
