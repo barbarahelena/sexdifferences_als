@@ -69,6 +69,7 @@ shan_caption <- paste0("Sex \u00d7 Group interaction: p = ", format.pval(p_int_s
 ggsave(plshan, filename = "results/humancohort2/alphadiversity.pdf", width = 6, height = 6)
 
 # Beta diversity in ALS
+set.seed(1234)
 dfals <- df |> filter(Group == "ALS")
 mb2 <- mb[which(rownames(mb) %in% dfals$ID),]
 bray <- vegan::vegdist(mb2, method = 'bray')
@@ -102,6 +103,7 @@ pl1 <- pl1 + annotate("text", x = Inf, y = Inf,
                     hjust = 1.1, vjust = 1.1, size = 5)
 
 # Beta diversity in controls
+set.seed(1234)
 dfctrl <- df |> filter(Group == "Control")
 mb2 <- mb[which(rownames(mb) %in% dfctrl$ID),]
 bray <- vegan::vegdist(mb2, method = 'bray')
