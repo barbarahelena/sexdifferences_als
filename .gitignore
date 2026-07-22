@@ -22,6 +22,7 @@ scripts/archive/
 packages/
 scripts/.DS_Store
 .DS_Store
+scripts/scripts_Robie
 
 # History files
 .Rhistory
