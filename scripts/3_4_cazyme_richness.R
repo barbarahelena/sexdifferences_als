@@ -6,9 +6,9 @@ library(tidyverse)
 library(ggsci)
 library(ggpubr)
 library(rio)
-library(vegan)    # For Shannon diversity
-library(lme4)     # For the linear mixed model (lmer)
-library(emmeans)  # For FDR-adjusted longitudinal contrasts
+library(vegan)     # For Shannon diversity
+library(lme4)
+library(lmerTest)  # For the linear mixed model (lmer) with p-values via Satterthwaite
 
 theme_Publication <- function(base_size=12, base_family="sans") {
   library(grid)
@@ -127,36 +127,40 @@ plot_metric_for_genotype <- function(genotype_name, data_plot, means_ses, metric
   means_df <- means_ses |> filter(Genotype == genotype_name)
   raw_df   <- data_plot |> filter(Genotype == genotype_name)
 
-  # metric ~ Sex * Age_fac with a random intercept for individual mice.
+  # Difference-in-differences: is the Female-Male difference at age X different from the
+  # Female-Male difference at baseline (week 6)? Tested by refitting metric ~ Sex * Age_fac
+  # on just that pair of timepoints and reading off the Sex:Age_fac interaction coefficient
+  # directly - that coefficient *is* the DiD estimate. BH-adjusted across the non-baseline ages.
   # scale(passed_reads) adjusts for residual sequencing-depth differences between samples.
-  # Age_fac is coded with week 6 as the reference level.
-  model_formula <- as.formula(paste(metric, "~ Sex * Age_fac + scale(passed_reads) + (1 | MouseID)"))
-  lmm_model <- tryCatch(
-    lme4::lmer(model_formula, data = raw_df),
-    error = function(e) NULL
-  )
+  baseline_age <- min(raw_df$Age_ints)
+  other_ages   <- setdiff(sort(unique(raw_df$Age_ints)), baseline_age)
 
-  contr_df <- NULL
-  if (!is.null(lmm_model)) {
-    # Difference-in-differences: is the Female-Male difference at age X different
-    # from the Female-Male difference at baseline (week 6)? BH-adjusted across the
-    # 5 non-baseline ages.
-    emm <- emmeans::emmeans(lmm_model, ~ Sex * Age_fac)
-    did <- contrast(emm, interaction = c("pairwise", "trt.vs.ctrl"), adjust = "fdr")
-    contr_df <- as.data.frame(did)
-    # emmeans reports the BH-adjusted value in a column still called "p.value";
-    # rename it so it's clear this is already FDR-adjusted (a q-value).
-    contr_df <- contr_df |> rename(q.value = p.value)
+  contr_rows <- lapply(other_ages, function(age) {
+    d2 <- raw_df |> filter(Age_ints %in% c(baseline_age, age))
+    d2$Age_fac <- relevel(droplevels(factor(d2$Age_ints)), ref = as.character(baseline_age))
+    f <- as.formula(paste(metric, "~ Sex * Age_fac + scale(passed_reads) + (1 | MouseID)"))
+    m <- tryCatch(lmerTest::lmer(f, data = d2), error = function(e) NULL)
+    if (is.null(m)) return(NULL)
+    coefs <- summary(m)$coefficients
+    int_row <- grep("^Sex.*:Age_fac", rownames(coefs), value = TRUE)
+    if (length(int_row) == 0) return(NULL)
+    data.frame(Age_ints = age,
+               estimate = coefs[int_row[1], "Estimate"],
+               p.value  = coefs[int_row[1], "Pr(>|t|)"])
+  })
 
-    contr_df$Age_ints <- as.integer(sub(" - 6$", "", contr_df$Age_fac_trt.vs.ctrl))
+  contr_df <- bind_rows(contr_rows)
+  if (nrow(contr_df) > 0) {
+    contr_df$q.value <- p.adjust(contr_df$p.value, method = "fdr")
     contr_df$sig <- case_when(
       contr_df$q.value < 0.001 ~ "***",
       contr_df$q.value < 0.01  ~ "**",
       contr_df$q.value < 0.05  ~ "*",
       TRUE ~ "ns"
     )
-
     contr_df$y_pos <- y_ceiling + y_pad
+  } else {
+    contr_df <- NULL
   }
 
   p <- ggplot(means_df, aes(x = Age_ints, y = mean, group = Sex, color = Sex)) +

@@ -10,7 +10,6 @@ library(vegan)
 library(ggrepel)
 library(lme4)
 library(lmerTest)
-library(emmeans)
 
 # Theme
 theme_Publication <- function(base_size=12, base_family="sans") {
@@ -171,14 +170,28 @@ rownames(clr_mat) <- df_tot$sampleID
 df_tot$Age_fac <- factor(df_tot$Age_ints)
 
 # Difference-in-differences vs baseline (week 6): is the between-group difference at age X
-# different from the between-group difference at baseline? BH-adjusted across the non-baseline
-# ages. (A plain per-age "pairwise | Age_fac" contrast would only ever have one comparison per
-# stratum there, since there are only 2 groups - so an "fdr" adjustment on that would be a no-op.)
-did_contrast_vs_baseline <- function(model, group_var) {
-  emm <- emmeans::emmeans(model, as.formula(paste("~", group_var, "* Age_fac")))
-  did <- contrast(emm, interaction = c("pairwise", "trt.vs.ctrl"), adjust = "fdr")
-  df  <- as.data.frame(did) |> rename(q.value = p.value)
-  df$Age_ints <- as.integer(sub(" - .*$", "", df$Age_fac_trt.vs.ctrl))
+# different from the between-group difference at baseline? Tested by refitting the model on
+# just that pair of timepoints (baseline + age X) and reading off the group:age interaction
+# coefficient directly - under this treatment coding, that coefficient *is* the DiD estimate.
+# BH-adjusted across the non-baseline ages.
+pairwise_contrast_vs_baseline <- function(data, response, group_var, baseline_age, ages, stratum = "All") {
+  rows <- lapply(ages, function(age) {
+    d2 <- data |> filter(Age_ints %in% c(baseline_age, age))
+    d2$Age_fac <- relevel(droplevels(factor(d2$Age_ints)), ref = as.character(baseline_age))
+    f <- as.formula(paste(response, "~", group_var, "* Age_fac + scale(passed_reads) + (1 | MouseID)"))
+    m <- tryCatch(lmerTest::lmer(f, data = d2, REML = FALSE), error = function(e) NULL)
+    if (is.null(m)) return(NULL)
+    coefs <- summary(m)$coefficients
+    int_row <- grep(paste0("^", group_var, ".*:Age_fac"), rownames(coefs), value = TRUE)
+    if (length(int_row) == 0) return(NULL)
+    data.frame(Age_ints = age,
+               estimate = coefs[int_row[1], "Estimate"],
+               p.value  = coefs[int_row[1], "Pr(>|t|)"])
+  })
+  df <- bind_rows(rows)
+  df$q.value <- p.adjust(df$p.value, method = "fdr")
+  df$grouping_variable <- group_var
+  df$Genotype_stratum  <- stratum
   df$sig <- case_when(
     df$q.value < 0.001 ~ "***",
     df$q.value < 0.01  ~ "**",
@@ -213,7 +226,9 @@ for (i in seq_along(gene_families2)) {
   )
   if (!is.null(lmm_geno)) {
     anova_geno <- anova(lmm_geno)
-    contr_geno <- did_contrast_vs_baseline(lmm_geno, "Genotype")
+    contr_geno <- pairwise_contrast_vs_baseline(df_lmm, "cazy_val", "Genotype",
+                                                 baseline_age = min(timepoints),
+                                                 ages = setdiff(tp_sufficient_tdp, min(timepoints)))
     y_fixed_geno <- max(means_geno$mean + means_geno$se, na.rm = TRUE) + 0.15
     contr_geno$y_pos <- y_fixed_geno
     lmm_anova_results[[paste0(gf, "_genotype")]] <- data.frame(
@@ -258,8 +273,12 @@ for (i in seq_along(gene_families2)) {
   )
   if (!is.null(lmm_sex)) {
     anova_sex <- anova(lmm_sex)
-    contr_sex <- did_contrast_vs_baseline(lmm_sex, "Sex")
-    y_fixed_sex <- max(means_sex$mean + means_sex$se, na.rm = TRUE) + 0.05
+    # Week 8 excluded from testing (only 2 TDP43 males at that age); still shown in the plot.
+    contr_sex <- pairwise_contrast_vs_baseline(df_tdp, "cazy_val", "Sex",
+                                                baseline_age = min(timepoints),
+                                                ages = setdiff(tp_sufficient_tdp, c(min(timepoints), 8)),
+                                                stratum = "TDP43")
+    y_fixed_sex <- max(means_sex$mean + means_sex$se, na.rm = TRUE) + 0.02
     contr_sex$y_pos <- y_fixed_sex
     lmm_anova_results[[paste0(gf, "_sex_TDP43")]] <- data.frame(
       anova_sex, term = rownames(anova_sex), model = paste0(gf, "_sex_TDP43")
