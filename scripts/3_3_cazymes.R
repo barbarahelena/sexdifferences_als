@@ -90,6 +90,15 @@ df_tot$Sex      <- relevel(factor(df_tot$Sex),      ref = "Female")
 # Check sample counts per group
 print(table(interaction(df_tot$Sex, df_tot$Genotype), df_tot$Age_ints))
 
+# Define timepoints
+timepoints <- sort(unique(df_tot$Age_ints))
+
+# Timepoints with sufficient TDP43 samples (>=3 per sex)
+tp_sufficient_tdp <- timepoints[sapply(timepoints, function(tp) {
+  d <- df_tot |> filter(Genotype == "TDP43" & Age_ints == tp)
+  nrow(d) > 0 && all(table(d$Sex) >= 3)
+})]
+
 # ============================================================================
 # 1a. BRAY-CURTIS PCoA PLOTS PER TIMEPOINT - Genotype (TDP43 vs WT)
 # ============================================================================
@@ -168,16 +177,16 @@ gene_families2 <- c("GH78", "GH106")
 for (i in seq_along(gene_families2)) {
   gf <- gene_families2[i]
   df_tot$cazy_val <- clr_mat[df_tot$sampleID, gf]
-  df_tot <- df_tot |> filter(Age_ints %in% tp_sufficient_tdp)
+  df_lmm <- df_tot |> filter(Age_ints %in% tp_sufficient_tdp)
 
   # ---- Genotype model: Genotype * Age_fac + (1 | MouseID) ----
-  means_geno <- df_tot |>
+  means_geno <- df_lmm |>
     group_by(Genotype, Age_ints) |>
     summarise(mean = mean(cazy_val, na.rm = TRUE),
               se = sd(cazy_val, na.rm = TRUE) / sqrt(n()), .groups = "drop")
 
   lmm_geno <- tryCatch(
-    lmerTest::lmer(cazy_val ~ Genotype * Age_fac + (1 | MouseID), data = df_tot, REML = FALSE),
+    lmerTest::lmer(cazy_val ~ Genotype * Age_fac + (1 | MouseID), data = df_lmm, REML = FALSE),
     error = function(e) NULL
   )
   if (!is.null(lmm_geno)) {
@@ -206,7 +215,7 @@ for (i in seq_along(gene_families2)) {
   pl_geno <- ggplot(means_geno, aes(x = Age_ints, y = mean, group = Genotype, color = Genotype)) +
     geom_line() +
     geom_point(size = 1) +
-    geom_jitter(data = df_tot, aes(x = Age_ints, y = cazy_val, color = Genotype),
+    geom_jitter(data = df_lmm, aes(x = Age_ints, y = cazy_val, color = Genotype),
                 width = 0.2, alpha = 0.5, inherit.aes = FALSE) +
     scale_color_manual(values = pal_nejm()(8)[c(6, 3)]) +
     geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.3) +
@@ -221,7 +230,7 @@ for (i in seq_along(gene_families2)) {
   line_plist_geno[[length(line_plist_geno) + 1]] <- pl_geno
 
   # ---- Sex model within TDP43: Sex * Age_fac + (1 | MouseID) ----
-  df_tdp <- df_tot |> filter(Genotype == "TDP43" & Age_ints %in% tp_sufficient_tdp)
+  df_tdp <- df_lmm |> filter(Genotype == "TDP43")
   means_sex <- df_tdp |>
     group_by(Sex, Age_ints) |>
     summarise(mean = mean(cazy_val, na.rm = TRUE),
