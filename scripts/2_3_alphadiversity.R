@@ -79,6 +79,27 @@ tp_sufficient_tdp <- timepoints[sapply(timepoints, function(tp) {
 
 print(table(interaction(df_shan$Sex, df_shan$Genotype), df_shan$Age_ints))
 
+# Difference-in-differences vs baseline (week 6): is the between-group difference at age X
+# different from the between-group difference at baseline? BH-adjusted across the non-baseline
+# ages. (A plain per-age "pairwise | Age_fac" contrast would only ever have one comparison per
+# stratum there, since there are only 2 groups - so an "fdr" adjustment on that would be a no-op.)
+did_contrast_vs_baseline <- function(model, group_var, stratum = "All") {
+  emm <- emmeans::emmeans(model, as.formula(paste("~", group_var, "* Age_fac")))
+  did <- contrast(emm, interaction = c("pairwise", "trt.vs.ctrl"), adjust = "fdr")
+  df  <- as.data.frame(did) |>
+    rename(q.value = p.value, comparison = all_of(paste0(group_var, "_pairwise")))
+  df$grouping_variable  <- group_var
+  df$Genotype_stratum   <- stratum
+  df$Age_ints <- as.integer(sub(" - .*$", "", df$Age_fac_trt.vs.ctrl))
+  df$sig <- case_when(
+    df$q.value < 0.001 ~ "***",
+    df$q.value < 0.01  ~ "**",
+    df$q.value < 0.05  ~ "*",
+    TRUE ~ "ns"
+  )
+  df
+}
+
 # ============================================================================
 # 1. LINE PLOT: Genotype (TDP43 vs WT) over time
 # ============================================================================
@@ -95,15 +116,7 @@ lmm_geno <- tryCatch(
 
 if (!is.null(lmm_geno)) {
   anova_geno <- anova(lmm_geno)
-  emm_geno   <- emmeans(lmm_geno, ~ Genotype | Age_fac)
-  contr_geno <- as.data.frame(contrast(emm_geno, method = "pairwise", adjust = "fdr"))
-  contr_geno$Age_ints <- as.integer(as.character(contr_geno$Age_fac))
-  contr_geno$sig <- case_when(
-    contr_geno$p.value < 0.001 ~ "***",
-    contr_geno$p.value < 0.01  ~ "**",
-    contr_geno$p.value < 0.05  ~ "*",
-    TRUE ~ "ns"
-  )
+  contr_geno <- did_contrast_vs_baseline(lmm_geno, "Genotype")
   y_max_geno <- max(means_geno$mean + means_geno$se, na.rm = TRUE) + 0.1
   contr_geno$y_pos <- y_max_geno
 } else {
@@ -146,15 +159,7 @@ lmm_sex_tdp <- tryCatch(
 
 if (!is.null(lmm_sex_tdp)) {
   anova_sex_tdp <- anova(lmm_sex_tdp)
-  emm_sex_tdp   <- emmeans(lmm_sex_tdp, ~ Sex | Age_fac)
-  contr_sex_tdp <- as.data.frame(contrast(emm_sex_tdp, method = "pairwise", adjust = "fdr"))
-  contr_sex_tdp$Age_ints <- as.integer(as.character(contr_sex_tdp$Age_fac))
-  contr_sex_tdp$sig <- case_when(
-    contr_sex_tdp$p.value < 0.001 ~ "***",
-    contr_sex_tdp$p.value < 0.01  ~ "**",
-    contr_sex_tdp$p.value < 0.05  ~ "*",
-    TRUE ~ "ns"
-  )
+  contr_sex_tdp <- did_contrast_vs_baseline(lmm_sex_tdp, "Sex", stratum = "TDP43")
   y_max_sex_tdp <- max(means_sex_tdp$mean + means_sex_tdp$se, na.rm = TRUE) + 0.1
   contr_sex_tdp$y_pos <- y_max_sex_tdp
 } else {
@@ -197,15 +202,7 @@ lmm_sex_wt <- tryCatch(
 
 if (!is.null(lmm_sex_wt)) {
   anova_sex_wt <- anova(lmm_sex_wt)
-  emm_sex_wt   <- emmeans(lmm_sex_wt, ~ Sex | Age_fac)
-  contr_sex_wt <- as.data.frame(contrast(emm_sex_wt, method = "pairwise", adjust = "fdr"))
-  contr_sex_wt$Age_ints <- as.integer(as.character(contr_sex_wt$Age_fac))
-  contr_sex_wt$sig <- case_when(
-    contr_sex_wt$p.value < 0.001 ~ "***",
-    contr_sex_wt$p.value < 0.01  ~ "**",
-    contr_sex_wt$p.value < 0.05  ~ "*",
-    TRUE ~ "ns"
-  )
+  contr_sex_wt <- did_contrast_vs_baseline(lmm_sex_wt, "Sex", stratum = "WT")
   y_max_sex_wt <- max(means_sex_wt$mean + means_sex_wt$se, na.rm = TRUE) + 0.1
   contr_sex_wt$y_pos <- y_max_sex_wt
 } else {
@@ -289,12 +286,18 @@ lmm_anova_all <- bind_rows(
   if (!is.null(lmm_sex_wt))  data.frame(anova_sex_wt,  term = rownames(anova_sex_wt),  model = "shannon_sex_WT"),
   if (!is.null(lmm_int))     data.frame(anova_int,     term = rownames(anova_int),     model = "shannon_genotype_sex_interaction")
 )
+# Baseline (week 6) difference-in-differences contrasts: same structure across all three,
+# kept separate from the interaction contrasts below (different question, different columns).
 lmm_contr_all <- bind_rows(
   if (!is.null(contr_geno))    data.frame(contr_geno,    model = "shannon_genotype"),
   if (!is.null(contr_sex_tdp)) data.frame(contr_sex_tdp, model = "shannon_sex_TDP43"),
-  if (!is.null(contr_sex_wt))  data.frame(contr_sex_wt,  model = "shannon_sex_WT"),
-  if (!is.null(lmm_int))       data.frame(contr_int,     model = "shannon_genotype_sex_interaction")
+  if (!is.null(contr_sex_wt))  data.frame(contr_sex_wt,  model = "shannon_sex_WT")
 )
+
+# Interaction model contrasts: overall (time-averaged) pairwise comparison of all 4
+# Genotype x Sex groups - a different question from the per-timepoint DiD contrasts above.
+lmm_interaction_contr <- if (!is.null(lmm_int)) data.frame(contr_int, model = "shannon_genotype_sex_interaction") else NULL
 
 write.csv2(lmm_anova_all, file.path(res_dir, "lmm_shannon_anova.csv"),     row.names = FALSE)
 write.csv2(lmm_contr_all, file.path(res_dir, "lmm_shannon_contrasts.csv"), row.names = FALSE)
+write.csv2(lmm_interaction_contr, file.path(res_dir, "lmm_shannon_interaction_contrasts.csv"), row.names = FALSE)
