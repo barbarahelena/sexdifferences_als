@@ -105,10 +105,11 @@ row1 <- ggarrange(
 
 row2 <- ggarrange(
   linda_volc,
+  NULL,
   heatmap_gg,
-  ncol   = 2,
-  labels = c("", "F"),
-  widths = c(1.5, 2.25)
+  ncol   = 3,
+  labels = c("", "", "F"),
+  widths = c(1.5, 0.15, 2.25)
 )
 
 row3 <- ggarrange(
