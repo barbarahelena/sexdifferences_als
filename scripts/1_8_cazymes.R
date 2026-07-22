@@ -60,10 +60,15 @@ fam <- ncol(cayman)
 clinical <- readRDS("data/human_cohort2/metadata.RDS")
 
 # --- CAZyme richness by sex ---
-richness <- readRDS("data/human_cohort2/cayman_sample_statistics.RDS")
+# Richness = number of CAZyme families with CPM > 1 per sample (Ducarmon et al. definition,
+# applied to CPM here since gene-length-corrected RPKM isn't available at the family level).
+# The cayman_sample_statistics "richness" column is a different, unnormalized alignment-stage
+# statistic (unique reference genes hit, pre-RPKM/CPM) and is not used here.
+richness_families <- setdiff(names(cayman), "sampleID")
+richness <- tibble(sampleID = cayman$sampleID,
+                    richness = rowSums(cayman[, richness_families] > 1))
 
 richness_plot <- richness |>
-  dplyr::rename(sampleID = sample) |>
   dplyr::left_join(clinical |> dplyr::select(ID, Sex, Group), by = c("sampleID" = "ID")) |>
   dplyr::filter(!is.na(Group))
 
@@ -87,6 +92,37 @@ int_text_richness <- paste0("Sex × Group interaction: p = ", format.pval(p_int_
          caption = int_text_richness))
 
 ggsave(file.path(res_dir, "cayman_richness_by_sex.pdf"), pl_richness, width = 5, height = 5)
+
+# --- CAZyme diversity by sex (Shannon) ---
+# Shannon diversity of the family-level CPM-normalized abundances per sample (how evenly
+# community abundance is spread across families, complementing richness above).
+shannon_vec <- vegan::diversity(cayman[, richness_families], index = "shannon")
+shannon <- tibble(sampleID = cayman$sampleID, shannon = as.numeric(shannon_vec))
+
+shannon_plot <- shannon |>
+  dplyr::left_join(clinical |> dplyr::select(ID, Sex, Group), by = c("sampleID" = "ID")) |>
+  dplyr::filter(!is.na(Group))
+
+# LM interaction test: Sex * Group
+model_int_shannon <- lm(shannon ~ Sex * Group, data = shannon_plot)
+int_row_shannon <- grep(":", rownames(summary(model_int_shannon)$coefficients), value = TRUE)
+p_int_shannon <- if (length(int_row_shannon) > 0) summary(model_int_shannon)$coefficients[int_row_shannon[1], 4] else NA
+int_text_shannon <- paste0("Sex × Group interaction: p = ", format.pval(p_int_shannon, digits = 2))
+
+(pl_shannon <- ggplot(shannon_plot, aes(x = Sex, y = shannon)) +
+    geom_boxplot(aes(fill = Sex), outlier.shape = NA, width = 0.5, alpha = 0.9) +
+    geom_jitter(color = "grey5", height = 0, width = 0.1, alpha = 0.75) +
+    geom_pwc(method = "wilcox.test", p.adjust.method = "fdr", label = "p.signif", hide.ns = TRUE) +
+    scale_fill_manual(guide = "none", values = pal_nejm()(2)) +
+    facet_wrap(~ Group) +
+    theme_Publication() +
+    theme(axis.text.x = element_text(angle = 0, hjust = 0.5),
+          axis.title.x = element_blank(),
+          plot.caption = element_text(size = 14)) +
+    labs(y = "Shannon diversity", x = "", title = "Sex differences in CAZyme diversity",
+         caption = int_text_shannon))
+
+ggsave(file.path(res_dir, "cayman_shannon_by_sex.pdf"), pl_shannon, width = 5, height = 5)
 
 # --- Beta diversity: CAZyme families ---
 # Prepare numeric matrix (all families, unfiltered)
