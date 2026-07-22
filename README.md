@@ -71,6 +71,9 @@ In this project, we investigated the role of the gut microbiota and metabolome i
 3. **`3_3_cazymes.R`**
    - Analyzes carbohydrate-active enzymes (CAZymes) in TDP43 mouse experiments.
    - Outputs: CAZyme abundance plots and statistics.
+4. **`3_4_cazyme_richness.R`**
+   - Analyzes CAZyme richness over time (Poisson GLMM, sex differences per genotype/timepoint).
+   - Outputs: `results/microbiome/cazymes/cazyme_richness.pdf`.
 
 #### Chapter 4: Mouse Metabolomics Analysis
 
@@ -87,7 +90,7 @@ In this project, we investigated the role of the gut microbiota and metabolome i
    - Creates boxplots for metabolites showing significant Sex × Genotype interactions.
    - Outputs: Boxplots for selected metabolites.
 5. **`4_5_assembleplot.R`**
-   - Assembles a cross-dataset figure combining mouse pathway/CAZyme and human metabolomics results.
+   - Assembles a cross-dataset figure combining mouse pathway/CAZyme (including CAZyme richness over time) and human metabolomics results.
    - Outputs: Combined multi-panel figure.
 
 #### Chapter 5: ENA Submission
@@ -122,6 +125,30 @@ pixi install
 ```
 
 This installs all R and Python dependencies defined in `pixi.toml`.
+
+### Running the pipeline
+
+Each chapter has a pixi task chain that runs its scripts in dependency order
+(not just numeric order - e.g. `pathways-microbes` pulls in chapter 2's
+microbiome/TCAM steps first, since it reads their output). Run a whole
+chapter with:
+
+```bash
+pixi run human-cohort            # Chapter 1: scripts 1_1 - 1_9
+pixi run mouse-microbiome        # Chapter 2: scripts 2_1 - 2_7
+pixi run mouse-pathways-cazymes  # Chapter 3: scripts 3_1 - 3_4 (pathways + CAZymes)
+pixi run mouse-metabolomics      # Chapter 4: scripts 4_1 - 4_5
+pixi run all                     # Chapters 1-4 end to end
+```
+
+The mouse CAZyme part of chapter 3 (abundance stats, richness) can be run on
+its own with `pixi run cazyme-mouse`. Every individual script also has its
+own task (e.g. `human-diversity`, `microbiome-tcam`, `cazyme-richness`,
+`metabolomics-heatmap`) - run `pixi task list` for the full set, or
+`pixi run -n <task>` to preview the execution order without running anything.
+
+Chapter 5 (ENA submission) and `run_pipeline*.sh` are HPC-only and are not
+wired up as pixi tasks.
 
 ### R Packages (key)
 
