@@ -3,6 +3,7 @@
 
 # Libraries
 library(tidyverse)
+library(ggsci)
 library(ggrepel)
 library(MicrobiomeStat)
 

@@ -99,7 +99,7 @@ res <- as.data.frame(res)
 
 
 pl1 <- pl1 + annotate("text", x = Inf, y = Inf,
-                    label = paste0("Sex: p = ", round(res$`Pr(>F)`[1], 3), ", R\u00b2 = ", round(res$R2[1], 3)),
+                    label = paste0("Sex: R\u00b2 = ", round(res$R2[1], 3), ", p = ", round(res$`Pr(>F)`[1], 3)),
                     hjust = 1.1, vjust = 1.1, size = 5)
 
 # Beta diversity in controls
@@ -133,7 +133,7 @@ res <- as.data.frame(res)
 
 
 pl2 <- pl2 + annotate("text", x = Inf, y = Inf,
-                    label = paste0("Sex: p = ", round(res$`Pr(>F)`[1], 3), ", R\u00b2 = ", round(res$R2[1], 3)),
+                    label = paste0("Sex: R\u00b2 = ", round(res$R2[1], 3), ", p = ", round(res$`Pr(>F)`[1], 3)),
                     hjust = 1.1, vjust = 1.1, size = 5)
 
 ggarrange(pl1, pl2, nrow = 1, labels = LETTERS[1:2], common.legend = TRUE, legend = "bottom")

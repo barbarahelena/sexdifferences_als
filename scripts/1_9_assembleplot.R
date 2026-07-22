@@ -20,9 +20,11 @@ library(ggthemes)
 # Note: this will re-run all analyses and re-save intermediate files.
 source("scripts/1_2_tableone.R")      # -> table_one_csv, tab_gt, meta
 source("scripts/1_4_diversity.R")     # -> pl1 (ALS PCoA), pl2 (Control PCoA)
-source("scripts/1_5_diffabundance.R") # -> bar_q_li_als_sex (list: $plot, $n)
+source("scripts/1_5_diffabundance.R") # -> p_li_als_sex, p_li_ctrl_sex (microbiome sex-diff volcanoes)
+p_li_als_sex_mb  <- p_li_als_sex
+p_li_ctrl_sex_mb <- p_li_ctrl_sex
 source("scripts/1_6_pathwaycorr.R")   # -> heatmap_top, lgd_sig_path
-source("scripts/1_8_cazymes.R")       # -> pl_caz1, pl_caz2, plist, families_present
+source("scripts/1_8_cazymes.R")       # -> pl_caz1, pl_caz2, p_li_als_sex, p_li_ctrl_sex (CAZyme sex-diff volcanoes; overwrites the microbiome versions above)
 
 #### Population table as ggplot ####
 tab_df <- as.data.frame(table_one_csv) |>
@@ -53,16 +55,10 @@ heatmap_gg <- as_ggplot(grid.grabExpr(
   )
 ))
 
-#### GH78 and GH106 boxplots ####
-gh78_idx  <- which(families_present == "GH78")
-gh106_idx <- which(families_present == "GH106")
-pl_gh78  <- plist[[gh78_idx]]
-pl_gh106 <- plist[[gh106_idx]]
-
 #### Assemble figure (portrait) ####
 # Row 1: A) population table | B+C) Bray-Curtis PCoA ALS + Control
-# Row 2: D+E) LInDA volcanos ALS + Control (stacked) | F) pathway heatmap
-# Row 3: G+H) CAZy PCoA ALS + Control | I) GH78 boxplot | J) GH106 boxplot
+# Row 2: D+E) LInDA volcanos (microbiome) ALS + Control (stacked) | F) pathway heatmap
+# Row 3: G+H) CAZy PCoA ALS + Control | I+J) LInDA volcanos (CAZymes) ALS + Control
 
 # Microbiome PCoA: ALS and Control side by side
 pcoa_mb <- ggarrange(
@@ -73,13 +69,21 @@ pcoa_mb <- ggarrange(
   legend        = "bottom"
 )
 
-# LInDA volcanos: ALS and Control stacked
+# LInDA volcanos (microbiome): ALS and Control stacked
 linda_volc <- ggarrange(
-  p_li_als_sex,
-  p_li_ctrl_sex,
+  p_li_als_sex_mb,
+  p_li_ctrl_sex_mb,
   nrow   = 2,
   heights = c(1.2, 1.0),
   labels = LETTERS[4:5]
+)
+
+# LInDA volcanos (CAZymes): ALS and Control side by side
+caz_volc <- ggarrange(
+  p_li_als_sex,
+  p_li_ctrl_sex,
+  ncol   = 2,
+  labels = LETTERS[9:10]
 )
 
 # CAZy PCoA: ALS and Control side by side
@@ -109,11 +113,10 @@ row2 <- ggarrange(
 
 row3 <- ggarrange(
   pcoa_caz,
-  pl_gh78,
-  pl_gh106,
-  ncol   = 3,
-  labels = c("", "I", "J"),
-  widths = c(2, 1, 1)
+  caz_volc,
+  ncol   = 2,
+  labels = c("", ""),
+  widths = c(2, 2)
 )
 
 assembled <- ggarrange(

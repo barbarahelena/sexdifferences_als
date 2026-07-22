@@ -124,7 +124,7 @@ res_als <- as.data.frame(res_als)
         theme(legend.position = "top"))
 
 (pl_caz1 <- pl_caz1 + annotate("text", x = Inf, y = Inf,
-                    label = paste0("Sex: p = ", round(res_als$`Pr(>F)`[1], 3), ", R\u00b2 = ", round(res_als$R2[1], 3)),
+                    label = paste0("Sex: R\u00b2 = ", round(res_als$R2[1], 3), ", p = ", round(res_als$`Pr(>F)`[1], 3)),
                     hjust = 1.1, vjust = 1.1, size = 5))
 
 # Beta diversity in controls
@@ -155,7 +155,7 @@ res_ctrl <- as.data.frame(res_ctrl)
         theme(legend.position = "top"))
 
 pl_caz2 <- pl_caz2 + annotate("text", x = Inf, y = Inf,
-                    label = paste0("Sex: p = ", round(res_ctrl$`Pr(>F)`[1], 3), ", R\u00b2 = ", round(res_ctrl$R2[1], 3)),
+                    label = paste0("Sex: R\u00b2 = ", round(res_ctrl$R2[1], 3), ", p = ", round(res_ctrl$`Pr(>F)`[1], 3)),
                     hjust = 1.1, vjust = 1.1, size = 5)
 pl_caz2
 pca_combined <- ggarrange(pl_caz1, pl_caz2, nrow = 1, labels = LETTERS[1:2], common.legend = TRUE, legend = "bottom")
