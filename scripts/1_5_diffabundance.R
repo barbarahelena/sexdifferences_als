@@ -59,7 +59,7 @@ make_wx_plotdf <- function(wx_res, pos_label, neg_label) {
       ),
       sig       = factor(sig, levels = c("q < 0.05", "p < 0.05", "ns")),
       direction = ifelse(diff > 0, pos_label, neg_label),
-      color_grp = ifelse(sig != "ns", direction, "Not significant"),
+      color_grp = ifelse(qval < 0.05, direction, "Not significant"),
       feature   = fct_reorder(feature, diff)
     )
 }
