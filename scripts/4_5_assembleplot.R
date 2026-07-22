@@ -7,6 +7,7 @@ library(ggsci)
 library(ggpubr)
 library(ComplexHeatmap)
 library(ggthemes)
+library(Cairo)
 
 #### Define global variables required by 3_3_cazymes.R ####
 # Mouse experiment timepoints (weeks); adjust if a subset had insufficient n
@@ -44,32 +45,34 @@ heatmap_gg_met <- as_ggplot(grid.grabExpr(
 pl_gh78_sex  <- line_plist_sex[[1]]
 pl_gh106_sex <- line_plist_sex[[2]]
 
-#### Extract CAZyme richness line plot ####
-pl_richness_tdp43 <- res_tdp43$plot + labs(title = "CAZyme richness in TDP43")
+#### Extract CAZyme Shannon diversity line plots ####
+pl_shannon_tdp43 <- res_tdp43_shannon$plot
+pl_shannon_wt    <- res_wt_shannon$plot
 
 #### Assemble figure ####
 # Left col:  A) full pathway-microbe heatmap (top)
-#            G) metabolite heatmap (bottom)
+#            H) metabolite heatmap (bottom)
 # Right col: B) GH78 | C) GH106
-#            D) CAZyme richness TDP43
-#            E) PCA total
-#            F) PCA by sex
+#            D) CAZyme diversity TDP43 | E) CAZyme diversity WT
+#            F) PCA total
+#            G) PCA by sex
 
 left_col <- ggarrange(
   heatmap_gg_path,
   heatmap_gg_met,
   nrow    = 2,
-  labels  = c("A", "G"),
+  labels  = c("A", "H"),
   heights = c(2.5, 0.8)
 )
 
 right_col <- ggarrange(
   ggarrange(pl_gh78_sex, pl_gh106_sex, ncol = 2, labels = LETTERS[2:3]),
-  pl_richness_tdp43,
+  ggarrange(pl_shannon_tdp43, pl_shannon_wt, ncol = 2, labels = c("D", "E"),
+            common.legend = TRUE, legend = "bottom"),
   pca1,
   pca2,
   nrow    = 4,
-  labels  = c("", "D", "E", "F"),
+  labels  = c("", "", "F", "G"),
   heights = c(0.8, 0.8, 1, 1)
 )
 
@@ -84,3 +87,8 @@ assembled <- ggarrange(
 ggsave("results/metabolomics/assembled_figure.pdf",
        plot   = assembled,
        width  = 18, height = 18)
+
+cairo_pdf("results/metabolomics/assembled_figure_cairo.pdf",
+          width = 18, height = 18, family = "Helvetica")
+print(assembled)
+dev.off()
