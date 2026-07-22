@@ -287,6 +287,11 @@ pdf_li_ctrl_sex <- make_wx_plotdf(li_ctrl_sex, "Higher in Female", "Higher in Ma
 (p_li_als_sex  <- wx_volcano(pdf_li_als_sex,  "CAZymes: Sex differences in ALS",       "log2FC (Female / Male)",  sex_colors))
 (p_li_ctrl_sex <- wx_volcano(pdf_li_ctrl_sex, "CAZymes: Sex differences in Controls",  "log2FC (Female / Male)",  sex_colors))
 
+# Harmonize the y-axis (-log10 p) between ALS and Control sex-diff volcanoes so the two panels are comparable
+y_max_sex <- max(-log10(pdf_li_als_sex$pval), -log10(pdf_li_ctrl_sex$pval), na.rm = TRUE)
+p_li_als_sex  <- p_li_als_sex  + coord_cartesian(ylim = c(0, y_max_sex * 1.05))
+p_li_ctrl_sex <- p_li_ctrl_sex + coord_cartesian(ylim = c(0, y_max_sex * 1.05))
+
 ggsave(p_li_main,     filename = file.path(res_dir, "cayman_linda_main_volcano.pdf"),     width = 7, height = 6)
 ggsave(p_li_female,   filename = file.path(res_dir, "cayman_linda_female_volcano.pdf"),   width = 7, height = 6)
 ggsave(p_li_male,     filename = file.path(res_dir, "cayman_linda_male_volcano.pdf"),     width = 7, height = 6)
