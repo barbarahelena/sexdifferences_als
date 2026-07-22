@@ -78,6 +78,7 @@ message("Removing ", length(lowcountids), " low-count samples: ", paste(lowcount
 gene_families <- setdiff(names(cayman), "sampleID")
 df_tot <- cayman |>
   left_join(meta, by = c("sampleID" = "ID")) |>
+  left_join(stat |> select(sample, passed_reads), by = c("sampleID" = "sample")) |>
   filter(!is.na(Genotype)) |>
   filter(!sampleID %in% lowcountids) |>
   filter(Age_ints >= 6 & Age_ints <= 18)
@@ -165,8 +166,27 @@ clr_mat <- clr_transform(df_tot[, gene_families])
 rownames(clr_mat) <- df_tot$sampleID
 
 ## --- Line plots over time for GH78 and GH106: LMM with Age as factor + emmeans ---
-# Age as a factor: no linearity assumption; emmeans gives per-timepoint FDR-corrected contrasts
+# Age as a factor: no linearity assumption. Age_fac is coded with the earliest timepoint
+# (week 6) as the reference level.
 df_tot$Age_fac <- factor(df_tot$Age_ints)
+
+# Difference-in-differences vs baseline (week 6): is the between-group difference at age X
+# different from the between-group difference at baseline? BH-adjusted across the non-baseline
+# ages. (A plain per-age "pairwise | Age_fac" contrast would only ever have one comparison per
+# stratum there, since there are only 2 groups - so an "fdr" adjustment on that would be a no-op.)
+did_contrast_vs_baseline <- function(model, group_var) {
+  emm <- emmeans::emmeans(model, as.formula(paste("~", group_var, "* Age_fac")))
+  did <- contrast(emm, interaction = c("pairwise", "trt.vs.ctrl"), adjust = "fdr")
+  df  <- as.data.frame(did) |> rename(q.value = p.value)
+  df$Age_ints <- as.integer(sub(" - .*$", "", df$Age_fac_trt.vs.ctrl))
+  df$sig <- case_when(
+    df$q.value < 0.001 ~ "***",
+    df$q.value < 0.01  ~ "**",
+    df$q.value < 0.05  ~ "*",
+    TRUE ~ "ns"
+  )
+  df
+}
 
 line_plist_geno <- list()
 line_plist_sex  <- list()
@@ -180,26 +200,20 @@ for (i in seq_along(gene_families2)) {
   df_lmm <- df_tot |> filter(Age_ints %in% tp_sufficient_tdp)
 
   # ---- Genotype model: Genotype * Age_fac + (1 | MouseID) ----
+  # scale(passed_reads) adjusts for residual sequencing-depth differences between samples.
   means_geno <- df_lmm |>
     group_by(Genotype, Age_ints) |>
     summarise(mean = mean(cazy_val, na.rm = TRUE),
               se = sd(cazy_val, na.rm = TRUE) / sqrt(n()), .groups = "drop")
 
   lmm_geno <- tryCatch(
-    lmerTest::lmer(cazy_val ~ Genotype * Age_fac + (1 | MouseID), data = df_lmm, REML = FALSE),
+    lmerTest::lmer(cazy_val ~ Genotype * Age_fac + scale(passed_reads) + (1 | MouseID),
+                   data = df_lmm, REML = FALSE),
     error = function(e) NULL
   )
   if (!is.null(lmm_geno)) {
     anova_geno <- anova(lmm_geno)
-    emm_geno   <- emmeans(lmm_geno, ~ Genotype | Age_fac)
-    contr_geno <- as.data.frame(contrast(emm_geno, method = "pairwise", adjust = "fdr"))
-    contr_geno$Age_ints <- as.integer(as.character(contr_geno$Age_fac))
-    contr_geno$sig <- case_when(
-      contr_geno$p.value < 0.001 ~ "***",
-      contr_geno$p.value < 0.01  ~ "**",
-      contr_geno$p.value < 0.05  ~ "*",
-      TRUE ~ "ns"
-    )
+    contr_geno <- did_contrast_vs_baseline(lmm_geno, "Genotype")
     y_fixed_geno <- max(means_geno$mean + means_geno$se, na.rm = TRUE) + 0.15
     contr_geno$y_pos <- y_fixed_geno
     lmm_anova_results[[paste0(gf, "_genotype")]] <- data.frame(
@@ -230,6 +244,7 @@ for (i in seq_along(gene_families2)) {
   line_plist_geno[[length(line_plist_geno) + 1]] <- pl_geno
 
   # ---- Sex model within TDP43: Sex * Age_fac + (1 | MouseID) ----
+  # scale(passed_reads) adjusts for residual sequencing-depth differences between samples.
   df_tdp <- df_lmm |> filter(Genotype == "TDP43")
   means_sex <- df_tdp |>
     group_by(Sex, Age_ints) |>
@@ -237,20 +252,13 @@ for (i in seq_along(gene_families2)) {
               se = sd(cazy_val, na.rm = TRUE) / sqrt(n()), .groups = "drop")
 
   lmm_sex <- tryCatch(
-    lmerTest::lmer(cazy_val ~ Sex * Age_fac + (1 | MouseID), data = df_tdp, REML = FALSE),
+    lmerTest::lmer(cazy_val ~ Sex * Age_fac + scale(passed_reads) + (1 | MouseID),
+                   data = df_tdp, REML = FALSE),
     error = function(e) NULL
   )
   if (!is.null(lmm_sex)) {
     anova_sex <- anova(lmm_sex)
-    emm_sex   <- emmeans(lmm_sex, ~ Sex | Age_fac)
-    contr_sex <- as.data.frame(contrast(emm_sex, method = "pairwise", adjust = "fdr"))
-    contr_sex$Age_ints <- as.integer(as.character(contr_sex$Age_fac))
-    contr_sex$sig <- case_when(
-      contr_sex$p.value < 0.001 ~ "***",
-      contr_sex$p.value < 0.01  ~ "**",
-      contr_sex$p.value < 0.05  ~ "*",
-      TRUE ~ "ns"
-    )
+    contr_sex <- did_contrast_vs_baseline(lmm_sex, "Sex")
     y_fixed_sex <- max(means_sex$mean + means_sex$se, na.rm = TRUE) + 0.05
     contr_sex$y_pos <- y_fixed_sex
     lmm_anova_results[[paste0(gf, "_sex_TDP43")]] <- data.frame(
